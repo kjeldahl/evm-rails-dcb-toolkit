@@ -1,0 +1,4 @@
+# Root package: shared rails plumbing (ApplicationController, EventStore,
+# Result, OpenApi, lib, config) that every slice may use. Slices depend on
+# this package and never on each other — see .build-kit/CLAUDE.md.
+enforce_dependencies: true

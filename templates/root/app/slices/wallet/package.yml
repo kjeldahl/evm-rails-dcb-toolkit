@@ -1,0 +1,11 @@
+# Slices integrate through events only (.build-kit/CLAUDE.md): no slice may
+# reference another slice's classes, so the only dependency is the root
+# package (ApplicationController, EventStore, Result — the shared plumbing).
+# Fold other slices' event types/tags instead of adding a dependency here.
+#
+# Every new context directory gets a copy of this file — packwerk silently
+# stops guarding a slice that lacks one.
+enforce_dependencies: true
+
+dependencies:
+  - "."

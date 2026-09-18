@@ -1,0 +1,6 @@
+{
+  "label": "Ruby · Rails 8 + dcb_event_store (event sourcing, Postgres, DCB)",
+  "kitSubdir": "build-kit",
+  "useShared": true,
+  "needsBoardId": true
+}

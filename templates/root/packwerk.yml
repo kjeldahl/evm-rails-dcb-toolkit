@@ -1,0 +1,16 @@
+# Packwerk enforces the slice-boundary rule of .build-kit/CLAUDE.md: slices
+# never reference each other's classes (events are the only cross-slice
+# contract). One package per slice (app/slices/*/package.yml) plus the root
+# package (package.yml); run `bundle exec packwerk check` (or
+# `bin/rails quality:packwerk`).
+
+# Teach packwerk about the Zeitwerk-collapsed app/slices/*/{domain,web} dirs;
+# without it slice constants are unresolvable and boundaries go unchecked.
+require:
+  - ./config/packwerk/collapsed_slice_dirs.rb
+
+# Tests exercise slices from the outside and may reference any slice's
+# classes; they are not part of the architecture being checked.
+exclude:
+  - "{bin,node_modules,script,tmp,vendor}/**/*"
+  - "spec/**/*"

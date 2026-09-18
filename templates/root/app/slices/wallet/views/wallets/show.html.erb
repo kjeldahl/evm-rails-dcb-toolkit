@@ -1,0 +1,17 @@
+<h1>Wallet <%= @wallet_id %></h1>
+
+<% if flash[:alert] %>
+  <p role="alert"><%= flash[:alert] %></p>
+<% end %>
+
+<p>Balance: <%= number_to_currency(@balance_cents / 100.0) %></p>
+
+<%= form_with url: deposit_wallet_path(@wallet_id) do |form| %>
+  <%= form.number_field :amount_cents, min: 1, required: true %>
+  <%= form.submit "Deposit (cents)" %>
+<% end %>
+
+<%= form_with url: withdraw_wallet_path(@wallet_id) do |form| %>
+  <%= form.number_field :amount_cents, min: 1, required: true %>
+  <%= form.submit "Withdraw (cents)" %>
+<% end %>

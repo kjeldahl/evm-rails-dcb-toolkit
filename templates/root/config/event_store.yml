@@ -1,0 +1,22 @@
+default: &default
+  adapter: <%= ENV.fetch("EVENT_STORE_ADAPTER", "postgres") %>
+  host: <%= ENV.fetch("EVENT_STORE_HOST", "localhost") %>
+  port: <%= ENV.fetch("EVENT_STORE_PORT", 5432) %>
+  username: <%= ENV.fetch("EVENT_STORE_USER", "my_app") %>
+  password: <%= ENV.fetch("EVENT_STORE_PASSWORD", "my_app") %>
+
+development:
+  <<: *default
+  database: my_app_development
+
+# Tests default to the in-memory store (fast, per-process isolation). Set
+# EVENT_STORE_ADAPTER=postgres to run the same suite against the real
+# PostgreSQL-backed store.
+test:
+  <<: *default
+  adapter: <%= ENV.fetch("EVENT_STORE_ADAPTER", "memory") %>
+  database: my_app_test
+
+production:
+  <<: *default
+  database: <%= ENV.fetch("EVENT_STORE_DATABASE", "my_app_production") %>
