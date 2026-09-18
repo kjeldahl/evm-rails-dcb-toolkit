@@ -15,6 +15,12 @@ description: Implements a read slice (a read model folded on demand from tag-sco
 > Worked example: `app/slices/wallet/domain/balance.rb` +
 > `spec/slices/wallet/balance_spec.rb`.
 
+> Paths like `app/slices/wallet/...` are the worked example **while it is
+> still installed**. INSTALL.md's last step deletes it; the permanent copy
+> lives at `.build-kit/examples/wallet/` (`slice/` mirrors
+> `app/slices/wallet/`, `spec/` mirrors `spec/slices/wallet/`). Read
+> whichever is present.
+
 ---
 
 ## What a read slice is
@@ -149,13 +155,41 @@ fold-everything-and-filter-in-Ruby workaround.
 
 ---
 
+## Step 2b — What this read model costs
+
+Folding at read time means **every read replays every event the query
+matches**, on every request. The query is the only lever:
+
+- **A tag-scoped query is bounded by one entity's history** (`"wallet:w1"` —
+  a few hundred events) and is the default. Fine forever.
+- **An untagged query replays the whole log** ("all reservations", "all
+  tables"): it is O(total events) per request and gets slower every day the
+  app runs. Acceptable for a list the board says is small and for admin
+  screens; not for anything on a hot path.
+- The gem has **no snapshotting and no materialized read models**. There is
+  nothing to configure your way out of this.
+
+So: if the read model the board asks for is untagged *and* its query has no
+natural bound, **don't quietly ship an O(all events) projection**. Build it,
+say so plainly in the slice's `docs/screens/` brief or the spec's comment,
+and raise `request-feedback` when the board implies it must stay fast —
+choosing a caching or materialisation strategy is an architecture decision,
+not a slice decision. If a bound *is* available (a period, a status, a
+parent id that is itself an `idAttribute`), put it in the query as a tag
+rather than filtering in Ruby after the fold: a filter in the handler still
+reads every event.
+
 ## Step 3 — Web layer
 
 Read slices almost always have a screen. Per `.build-kit/CLAUDE.md`:
 
 - A plain render of this model's fields → build it: thin controller in
   `web/` calling `.find(...)`, ERB in `views/<resource>/`, a route line
-  (with `module: :<context>` — the controller is namespaced),
+  (with `module: :<context>` — the controller is namespaced), a **request
+  spec** (`spec/slices/<context>/requests_spec.rb`, `type: :request`: the
+  screen renders 200 and shows the model, the JSON endpoint returns the
+  documented body — nothing else catches a wrong route or a missed template,
+  which renders 204),
   **and a JSON response** (`respond_to`, rendering the model's fields —
   worked example: `wallets_controller.rb#show`). **Render the
   empty/initial state meaningfully** — the screen sees it the first moment

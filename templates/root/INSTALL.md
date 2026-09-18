@@ -2,49 +2,78 @@
 
 Rails apps are scaffolded by `rails new`, so unlike kits whose
 `templates/root/` is already a runnable project, this kit is an **overlay**.
-Order matters: `rails new` **first**, then
-`npx @eventmodelers/cli init --stack rails-dcb --git <this repo>` inside it
-(the CLI copies this overlay on top and never deletes what `rails new`
-wrote).
+Everything `rails new` owns — `Gemfile`, `config/application.rb`,
+`ApplicationController`, `config/routes.rb`, `.gitignore`, RSpec — has to be
+patched *after* the overlay lands, which is what `template.rb` does.
 
 **This file is meant to be read, followed, and deleted.**
 
 ## 0 · Prerequisites
 
-Ruby ≥ 3.3, Node not required. **No database server**: the event store
-defaults to SQLite — one file under `storage/`, created for you in step 5.
-(PostgreSQL is one env var away — see *Using PostgreSQL instead* at the
-bottom.)
+Ruby >= 3.3, Node not required for the app itself. **No database server**:
+the event store defaults to SQLite — one file under `storage/`. (PostgreSQL
+is one env var away — see *Using PostgreSQL instead* at the bottom.)
 
-## 1 · `rails new` (if you haven't yet)
+## 1 · Install
 
 ```bash
 rails new my_app --skip-active-record --skip-action-mailbox --skip-action-text \
   --skip-active-storage --skip-test --skip-system-test
 cd my_app
+npx @eventmodelers/cli init --stack rails-dcb --git https://github.com/kjeldahl/evm-rails-dcb-toolkit
+bin/rails app:template LOCATION=https://raw.githubusercontent.com/kjeldahl/evm-rails-dcb-toolkit/main/template.rb
 ```
+
+**Installed this kit before?** The CLI caches its clone of a `--git` stack in
+`~/.eventmodelers/git-stacks/` and reuses it without pulling, so a second
+install copies the version you first fetched. Refresh it before `init`:
+
+```bash
+rm -rf ~/.eventmodelers/git-stacks/*evm-rails-dcb-toolkit*
+# or, in that clone: git -C ~/.eventmodelers/git-stacks/<dir> pull
+```
+
+`template.rb` is fetched by URL on every run, so it is never stale — but the
+overlay the CLI copies is.
 
 `--skip-active-record` is the important one — the only persistence in this
 stack is the append-only events table, reached through `lib/event_store.rb`.
 It skips `config/database.yml` and ActiveRecord entirely; the event store's
 own SQLite file is configured in `config/event_store.yml`, not there.
 
-If you pass `--skip-git`, Rails writes **no `.gitignore`** — this kit ships
-one (it covers `config/master.key`, `storage/`, `*.sqlite3`, `node_modules/`).
-Before your first commit, check it landed and that `git status` does not show
-`config/master.key`.
+The last line is the whole of section 2 below, run for you: gems, the slice
+wiring, the two `ApplicationController` policies, the routes, RSpec, the app
+name in `config/event_store.yml`, the archived worked example and
+`event_store:prepare`. **It is idempotent** — re-run it any time the CLI
+copies the overlay again.
 
-Then run the kit installer inside the app directory (skip if you already
-did — this INSTALL.md arriving means it ran):
+Without a board yet, the template can fetch the overlay itself:
 
 ```bash
-npx @eventmodelers/cli init --stack rails-dcb --git https://github.com/kjeldahl/evm-rails-dcb-toolkit
+rails new my_app --skip-active-record --skip-action-mailbox --skip-action-text \
+  --skip-active-storage --skip-test --skip-system-test \
+  -m https://raw.githubusercontent.com/kjeldahl/evm-rails-dcb-toolkit/main/template.rb
 ```
 
-## 2 · Gemfile
+Then verify:
 
-The CLI copies files without merging, so it can't edit the `Gemfile`
-`rails new` generated. Append:
+```bash
+bundle exec rspec && bundle exec rubocop && bundle exec packwerk check
+bin/rails server
+#   curl -H 'content-type: application/json' -d '{"amount_cents":500}' localhost:3000/wallets/w1/deposit.json
+#   curl localhost:3000/wallets/w1.json
+#   curl localhost:3000/openapi.json
+#   open http://localhost:3000/wallets/w1
+```
+
+Green? Skip to *Cleanup*.
+
+## 2 · By hand, if you would rather
+
+Everything the template does, in order. Each step says what breaks when it
+is skipped — all four failures are silent or misleading.
+
+### Gemfile
 
 ```ruby
 # Event sourcing via Dynamic Consistency Boundary event store
@@ -53,13 +82,12 @@ gem "sqlite3", "~> 2.0"
 gem "connection_pool", "~> 2.4"
 
 # Environment pin, not a kit requirement: json 3.x breaks Rails' JSON request
-# parsing (seen on Ruby 4.0.5), so the curl calls below fail on a well-formed
+# parsing (seen on Ruby 4.0.5), so the curl calls above fail on a well-formed
 # body. Drop the pin once your Ruby/Rails pair is known good with json 3.
 gem "json", "~> 2.10"
 
 group :development, :test do
   gem "rspec-rails", "~> 8.0"
-  gem "rubocop-rails-omakase", require: false
 
   # Quality gate: slice boundary enforcement (no cross-slice constant refs)
   gem "packwerk", require: false
@@ -68,19 +96,25 @@ group :development, :test do
 end
 ```
 
+**`rails new` already put `rubocop-rails-omakase` in the Gemfile** — adding
+it again only earns a Bundler warning.
+
 ```bash
 bundle install
 bin/rails generate rspec:install
 ```
 
-Then make RSpec load the kit's support files — in `spec/rails_helper.rb`,
-uncomment (or add):
+`rspec:install` writes a `rails_helper` for an ActiveRecord app, so in
+`spec/rails_helper.rb`: uncomment the support-file glob (nothing resets the
+event store between examples without it), comment out
+`ActiveRecord::Migration.maintain_test_schema!`, drop `config.fixture_paths`,
+and set `config.use_transactional_fixtures = false`.
 
 ```ruby
 Rails.root.glob("spec/support/**/*.rb").sort_by(&:to_s).each { |f| require f }
 ```
 
-## 3 · Wire the slices into `config/application.rb`
+### `config/application.rb`
 
 Paste inside `class Application < Rails::Application`:
 
@@ -98,14 +132,13 @@ initializer "app.collapse_slice_dirs", before: :setup_main_autoloader do
   Rails.autoloaders.main.collapse(slices_root.join("*/web"))
 end
 # Each slice's views/ is a view-lookup root, so app/slices/wallet/views/
-# wallets/show.html.erb is found as "wallets/show" (see step 4).
+# wallets/show.html.erb is found as "wallets/show".
 config.paths["app/views"].concat(root.glob("app/slices/*/views").map(&:to_s))
 ```
 
-## 4 · `app/controllers/application_controller.rb`
+### `app/controllers/application_controller.rb`
 
-Two lines of policy every slice depends on. Paste inside
-`class ApplicationController < ActionController::Base`:
+Paste inside `class ApplicationController < ActionController::Base`:
 
 ```ruby
 # Slice controllers are namespaced (Wallet::WalletsController) but their
@@ -124,29 +157,11 @@ end
 protect_from_forgery with: :exception, unless: -> { request.format.json? }
 ```
 
-Both failures are silent if you skip this — a namespaced controller's template
-is simply never found (204 No Content, no error) and JSON calls 422 — so
-`spec/controllers/application_controller_spec.rb` asserts them. It stays after
-the worked example is deleted.
+Both failures are invisible to a green suite, so
+`spec/controllers/application_controller_spec.rb` asserts them, and
+`spec/slices/wallet/requests_spec.rb` exercises the whole web path.
 
-## 5 · Event store
-
-Connection settings live in `config/event_store.yml` (env-overridable:
-`EVENT_STORE_ADAPTER`, `EVENT_STORE_PATH`, and the PostgreSQL
-`EVENT_STORE_HOST/PORT/USER/PASSWORD/DATABASE`). Defaults to SQLite at
-`storage/<env>.sqlite3`. Create the file and the schema:
-
-```bash
-bin/rails event_store:prepare   # creates storage/ if missing, then the events tables
-```
-
-(`event_store:setup` = schema only; `event_store:reset` = drop + recreate,
-destroys all events.)
-
-## 6 · Routes
-
-Paste into `config/routes.rb` — the OpenAPI endpoint (permanent) and the
-worked example's routes (deleted with the example):
+### `config/routes.rb`
 
 ```ruby
 get "openapi.json" => "openapi#show"
@@ -163,24 +178,32 @@ resources :wallets, only: :show, param: :wallet_id, module: :wallet do
 end
 ```
 
-## Done
+### The rest
 
 ```bash
-bundle exec rspec && bundle exec rubocop && bundle exec packwerk check
-bin/rails server
-# JSON API + OpenAPI doc:
-#   curl -H 'content-type: application/json' -d '{"amount_cents":500}' localhost:3000/wallets/w1/deposit.json
-#   curl localhost:3000/wallets/w1.json
-#   curl localhost:3000/openapi.json
-# HTML screen:
-#   open http://localhost:3000/wallets/w1
+# The overlay is copied, not rendered — and this must catch the PostgreSQL
+# database names (my_app_development/_test/_production) too, not just the
+# bare "my_app".
+ruby -pi -e 'gsub("my_app", "your_app_name")' config/event_store.yml
+mkdir -p .build-kit/examples/wallet
+cp -r app/slices/wallet .build-kit/examples/wallet/slice
+cp -r spec/slices/wallet .build-kit/examples/wallet/spec
+bin/rails event_store:prepare     # creates storage/ if missing, then the events tables
 ```
 
+(`event_store:setup` = schema only; `event_store:reset` = drop + recreate,
+destroys all events.)
+
+## Cleanup
+
 Once green, **delete this file, delete `app/slices/wallet/`,
-`spec/slices/wallet/` and the wallet routes** (keep `get "openapi.json"`;
-keep a copy of the example reachable via `git show` on this commit — every
-`build-*` skill points at the worked example by name), and start marking
-slices `Planned` on the board.
+`spec/slices/wallet/` and the wallet routes** (keep `get "openapi.json"`),
+then start marking slices `Planned` on the board.
+
+The worked example the `build-*` skills reference by name is **not** lost
+with it: `.build-kit/examples/wallet/` holds a permanent copy, outside the
+autoload and eager-load paths and excluded from packwerk, so it never boots
+with the app.
 
 ## Using PostgreSQL instead
 
@@ -195,7 +218,7 @@ gem "pg", "~> 1.5"
 ```
 
 ```bash
-createuser -s my_app 2>/dev/null || true   # or point EVENT_STORE_USER at an existing role
+createuser -s your_app_name 2>/dev/null || true   # or point EVENT_STORE_USER at an existing role
 EVENT_STORE_ADAPTER=postgres bin/rails event_store:prepare  # creates the database, then the schema
 ```
 

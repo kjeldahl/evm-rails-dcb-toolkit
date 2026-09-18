@@ -15,6 +15,9 @@ code — here, into a Rails 8 app event-sourced on
 - Ruby ≥ 3.3, Rails 8, Node (for the `npx` CLI), and Claude Code (the agent
   loop drives it). No database server: the event store defaults to SQLite
   (PostgreSQL is one env var away).
+- Re-installing over an earlier version? The CLI caches its clone of a
+  `--git` stack in `~/.eventmodelers/git-stacks/` and does not pull — clear
+  it first or you install the version you originally fetched.
 
 ## 1 · Scaffold
 

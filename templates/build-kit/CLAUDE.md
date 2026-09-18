@@ -80,6 +80,14 @@ never the plumbing around them.
   minor units (cents) unless the board says otherwise.
 - **Tags are strings of the form `kind:value`** (`"wallet:#{wallet_id}"`).
   Normalise before tagging (e.g. emails `strip.downcase`).
+- **A board field whose snake_case name is a Ruby keyword gets a trailing
+  underscore — in Ruby code only.** `end` → `end_`, `class` → `class_`,
+  `begin` → `begin_`, and the same for `do`, `if`, `then`, `next`, `return`,
+  `self`, `nil`, `true`, `false`, `module`, `def`. The **event `data` key,
+  the tag and the spec's scenario title keep the board's name verbatim**
+  (`data: { end: end_ }`) — symbols are never keywords, so only parameters
+  and locals need it. `def call(end:)` does parse, but the local it binds is
+  then reachable only through `binding.local_variable_get(:end)`; don't.
 - **Rubocop omakase** (`rubocop-rails-omakase`) — run it, don't fight it.
 
 ## Architecture rules
@@ -98,6 +106,13 @@ never the plumbing around them.
   raised — rescue it and return a retry `Result.failure`. A command with no
   read-dependent invariant (pure fact recording, e.g. a deposit) appends
   without a condition, deliberately.
+- **Generated identifiers are a defaulted keyword argument, never an inline
+  `SecureRandom.uuid`.** A board field marked `generated: true` is minted in
+  the command — `def self.call(..., deposit_id: SecureRandom.uuid)` — so a
+  spec can pass the scenario's literal example (`"CONF1RM-0042"`) and assert
+  on it. Hard-coding the generator inside the body makes the board's own
+  example data untestable, which is the one thing specs here exist to check.
+  Worked example: `Wallet::Deposit`.
 - **Only a context's `Events` module constructs the events it owns, and only
   that context appends them.** One constructor method per owned event type,
   returning a `DcbEventStore::Event` with the exact type, data and tags.
@@ -230,6 +245,14 @@ reference) and serves the merged document at `GET /openapi.json`. Rules:
 - Keep controller and `openapi.rb` in sync — the OpenAPI spec
   (`spec/lib/open_api_spec.rb`) guards document validity ($refs resolve),
   but only you guard truthfulness.
+- **Every web-facing slice ships a request spec** (`type: :request`) in
+  `spec/slices/<context>/requests_spec.rb`: the HTML screen renders 200 and
+  shows the read model, the JSON endpoint returns the documented body, and a
+  rejected command answers 422 with the board's message. Domain specs cannot
+  see the web layer at all, and each of its failure modes is quiet — a
+  namespaced route without `module:` only raises at request time, and a
+  template the lookup path misses renders **204 No Content**, not an error.
+  Worked example: `spec/slices/wallet/requests_spec.rb`.
 
 Worked example: `app/slices/wallet/web/openapi.rb`.
 
@@ -273,6 +296,19 @@ config/routes.rb                             # one resources/route line, module:
 
 **Once you have a context built, read it before the next slice in it.**
 Existing code beats these templates: if they diverge, the template is stale.
+
+**The worked example is permanent.** `app/slices/wallet/` is deleted at the
+end of the install; the copy at **`.build-kit/examples/wallet/`** (`slice/`
+and `spec/`) is not, and is what every reference to "the worked example" in
+these skills means once the app has its own slices. It sits outside the
+autoload and eager-load paths and is excluded from packwerk, so it never
+boots with the app.
+
+**Two board scenarios can share a title** (the board does not enforce
+uniqueness). One `it` per scenario still holds — group them under a
+`describe "<the shared title>"` and let each example's *data* tell them
+apart. Never merge two scenarios into one example, and never invent a
+distinguishing title the board does not have.
 
 ## Before you start
 

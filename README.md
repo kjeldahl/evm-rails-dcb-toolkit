@@ -20,7 +20,21 @@ with the standard CLI:
 ```bash
 npx @eventmodelers/cli init --stack rails-dcb \
   --git https://github.com/kjeldahl/evm-rails-dcb-toolkit
+bin/rails app:template LOCATION=https://raw.githubusercontent.com/kjeldahl/evm-rails-dcb-toolkit/main/template.rb
 ```
+
+The second line is `template.rb`, a Rails application template that patches
+everything `rails new` owns and the overlay therefore cannot: gems, the slice
+wiring in `config/application.rb`, the two `ApplicationController` policies,
+the routes, RSpec, the app name in `config/event_store.yml`. It is
+idempotent, and it can also install the kit on its own via
+`rails new ... -m <that URL>`. `INSTALL.md` keeps every step in longhand as
+the fallback.
+
+> **Re-installing?** The CLI caches its clone of a `--git` stack under
+> `~/.eventmodelers/git-stacks/` and reuses it without pulling, so an
+> unrefreshed cache installs the kit version you first fetched. Delete that
+> directory (or `git pull` in it) before `init`.
 
 New here? Start with the guides:
 

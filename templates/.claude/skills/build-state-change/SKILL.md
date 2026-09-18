@@ -16,6 +16,12 @@ description: Implements a write slice (a command validated against a decision mo
 > Read the worked example first if this is your first slice:
 > `app/slices/wallet/domain/` and `spec/slices/wallet/`.
 
+> Paths like `app/slices/wallet/...` are the worked example **while it is
+> still installed**. INSTALL.md's last step deletes it; the permanent copy
+> lives at `.build-kit/examples/wallet/` (`slice/` mirrors
+> `app/slices/wallet/`, `spec/` mirrors `spec/slices/wallet/`). Read
+> whichever is present.
+
 ---
 
 ## What a write slice is
@@ -246,6 +252,13 @@ business rule.
 - **View:** per `.build-kit/CLAUDE.md`'s "Screens" section — a plain form
   posting exactly the command's fields, or a screen brief at
   `docs/screens/<slice>.md` when the screen isn't a plain render/form.
+- **Request spec:** `spec/slices/<context>/requests_spec.rb` (`type:
+  :request`) — the JSON endpoint returns the documented body, a rejected
+  command answers 422 with the board's message, the HTML post redirects and
+  carries the rejection as a flash. The domain specs below cannot see any of
+  this, and both failure modes are quiet (a route missing `module:` raises
+  only at request time; a template the lookup misses renders 204). Worked
+  example: `spec/slices/wallet/requests_spec.rb`.
 - **Package:** if this slice created the context directory, copy
   `app/slices/wallet/package.yml` into it — packwerk silently stops
   guarding a slice without one.
@@ -287,10 +300,25 @@ Beyond the board's scenarios, always add:
   this command's decision (append them in `given`, assert the decision
   ignores them). This is the test that catches a wrong tag key — the
   board's own scenarios usually can't, because they only ever use one id.
-- **A race spec** when the command carries an append condition: capture a
-  decision, append a conflicting event, assert appending with the stale
-  condition raises `DcbEventStore::ConditionNotMet` — the pattern is worked
-  in `spec/slices/wallet/withdraw_spec.rb`.
+- **A race spec** when the command carries an append condition. Land the
+  conflicting event **inside the command's own read → append window** by
+  wrapping the read, then assert the *command's* `Result`:
+
+  ```ruby
+  allow(EventStore).to receive(:decide).and_wrap_original do |read, *args, **projections|
+    decision = read.call(*args, **projections)
+    EventStore.append(<Context>::Events.<conflicting>(...))
+    decision
+  end
+
+  expect(described_class.call(...).error).to eq("… please retry")
+  ```
+
+  Appending the conflicting event *before* the call proves nothing: the
+  command simply reads the newer state and the **business rule** rejects it,
+  so the `rescue ConditionNotMet` branch — and the retry message — is never
+  reached. Asserting only that `EventStore.append` raises tests the gem, not
+  your command. Worked example: `spec/slices/wallet/withdraw_spec.rb`.
 
 Specs run on the in-memory store, reset around every example — no database
 server, no mocking of `EventStore`.

@@ -5,6 +5,12 @@ description: Implements an automation slice (a background processor that watches
 
 # Build an automation slice
 
+> Paths like `app/slices/wallet/...` are the worked example **while it is
+> still installed**. INSTALL.md's last step deletes it; the permanent copy
+> lives at `.build-kit/examples/wallet/` (`slice/` mirrors
+> `app/slices/wallet/`, `spec/` mirrors `spec/slices/wallet/`). Read
+> whichever is present.
+
 > Before anything else, read the definition at
 > `.build-kit/.slices/{Context}/{slice}/slice.json`. Never invent fields
 > that aren't there.

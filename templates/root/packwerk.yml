@@ -14,3 +14,6 @@ require:
 exclude:
   - "{bin,node_modules,script,tmp,vendor}/**/*"
   - "spec/**/*"
+  # The archived worked example (.build-kit/examples/) is reference code kept
+  # outside the autoload paths — it is not part of the running app.
+  - ".build-kit/**/*"
