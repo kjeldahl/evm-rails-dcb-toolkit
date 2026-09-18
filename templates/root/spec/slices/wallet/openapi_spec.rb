@@ -13,10 +13,11 @@ RSpec.describe "Wallet OpenAPI contribution" do
     # registration step.
     expect(document[:paths].keys).to include(
       "/wallets/{wallet_id}",
+      "/wallets/{wallet_id}/history",
       "/wallets/{wallet_id}/deposit",
       "/wallets/{wallet_id}/withdraw"
     )
     expect(document[:components][:schemas].keys)
-      .to include("WalletBalance", "AmountCents", "CommandRejected")
+      .to include("WalletBalance", "WalletHistory", "WalletHistoryEntry", "AmountCents", "CommandRejected")
   end
 end

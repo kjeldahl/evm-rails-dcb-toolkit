@@ -132,6 +132,7 @@ KIT_ROUTES = <<~'ROUTES'.freeze
 
   resources :wallets, only: :show, param: :wallet_id, module: :wallet do
     member do
+      get :history
       post :deposit
       post :withdraw
     end

@@ -177,6 +177,7 @@ get "openapi.json" => "openapi#show"
 # `module: :<slice>`; the path and helper names stay un-namespaced.
 resources :wallets, only: :show, param: :wallet_id, module: :wallet do
   member do
+    get :history
     post :deposit
     post :withdraw
   end

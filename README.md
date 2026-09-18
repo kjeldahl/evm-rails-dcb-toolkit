@@ -55,7 +55,7 @@ New here? Start with the guides:
 | `lib/event_store.rb`, `lib/result.rb`, `config/event_store.yml`, `lib/tasks/` | the shared plumbing every slice uses |
 | `lib/open_api.rb` + `app/controllers/openapi_controller.rb` | OpenAPI 3.1 document assembled from slice-local `web/openapi.rb` registrations, served at `GET /openapi.json` |
 | `packwerk.yml`, `package.yml`, `config/packwerk/` | packwerk slice-boundary gate (one package per slice; cross-slice constant references fail the build) |
-| `app/slices/wallet/` + `spec/slices/wallet/` | one worked bounded context (deposit, withdraw, balance — ERB screen, JSON API, OpenAPI registration) |
+| `app/slices/wallet/` + `spec/slices/wallet/` | one worked bounded context (deposit, withdraw, balance, history — both read-model shapes, scalar and list; ERB screens, JSON API, OpenAPI registration, request specs) |
 | `app/assets/stylesheets/_kit.css` | ~100 lines of classless baseline styling (light + dark) so generated ERB screens look presentable with no classes to learn |
 | `docs/screens/` | a worked example of a screen brief |
 | `.gitignore` | Rails' ignores + `config/master.key`, `storage/`, `*.sqlite3`, `node_modules/` — `rails new --skip-git` writes none |

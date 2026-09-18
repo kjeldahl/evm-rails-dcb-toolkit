@@ -112,6 +112,10 @@ about your board.
 - **A slice with no read model** answers JSON `201` with the identifiers it
   established and HTML `redirect_back` — never another slice's route
   helper.
+- **A list read model accumulates `Data.define` rows**, not hashes — a
+  mistyped key then fails where the mistake is instead of rendering blank.
+  Worked example: `Wallet::History` (scalar counterpart: `Wallet::Balance`).
+  Test order, the running total and the empty case.
 - **Screens are styled already** by the kit's classless stylesheet
   (`app/assets/stylesheets/_kit.css`): semantic elements only, no `class`
   or `style` attributes, no framework. `<output>` for the headline value,

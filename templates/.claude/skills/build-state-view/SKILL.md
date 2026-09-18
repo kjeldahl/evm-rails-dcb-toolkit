@@ -12,8 +12,13 @@ description: Implements a read slice (a read model folded on demand from tag-sco
 > And read `.build-kit/CLAUDE.md`, especially the tag rule — it applies
 > here as the projection query's `tags:` filter.
 
-> Worked example: `app/slices/wallet/domain/balance.rb` +
-> `spec/slices/wallet/balance_spec.rb`.
+> Worked examples — **read the one matching your read model's shape**:
+> a scalar, `app/slices/wallet/domain/balance.rb` +
+> `spec/slices/wallet/balance_spec.rb`; a **list**,
+> `app/slices/wallet/domain/history.rb` +
+> `spec/slices/wallet/history_spec.rb`, with its table screen at
+> `views/wallets/history.html.erb`. The only difference between them is what
+> the fold accumulates.
 
 > Paths like `app/slices/wallet/...` are the worked example **while it is
 > still installed**. INSTALL.md's last step deletes it; the permanent copy
@@ -161,7 +166,8 @@ Folding at read time means **every read replays every event the query
 matches**, on every request. The query is the only lever:
 
 - **A tag-scoped query is bounded by one entity's history** (`"wallet:w1"` —
-  a few hundred events) and is the default. Fine forever.
+  a few hundred events) and is the default. Fine forever, list or scalar:
+  `Wallet::History` folds a whole ledger this way.
 - **An untagged query replays the whole log** ("all reservations", "all
   tables"): it is O(total events) per request and gets slower every day the
   app runs. Acceptable for a list the board says is small and for admin
@@ -178,6 +184,24 @@ not a slice decision. If a bound *is* available (a period, a status, a
 parent id that is itself an `idAttribute`), put it in the query as a tag
 rather than filtering in Ruby after the fold: a filter in the handler still
 reads every event.
+
+## Rows are value objects
+
+A list read model accumulates **rows, not hashes**:
+
+```ruby
+Entry = Data.define(:kind, :amount_cents, :balance_cents, :at)
+```
+
+A `Data.define` row makes a mistyped key a `NoMethodError` where the mistake
+is, instead of a `nil` that reaches the screen and renders as blank. Keep the
+fold immutable (`rows + [ entry ]`), and prefer a **signed** number over a
+kind-plus-magnitude pair when the screen will sum it — `Wallet::History`
+stores a withdrawal as a negative `amount_cents`, so the running balance is
+a plain sum and neither the fold nor the view needs a branch.
+
+Three things a list fold can get wrong that a scalar can't, so test all
+three: **order**, the **running total**, and the **empty case**.
 
 ## Step 3 — Web layer
 
