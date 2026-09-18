@@ -2,9 +2,9 @@
 
 require "rails_helper"
 
-# Permanent infrastructure spec for config/initializers/dcb_event_store.rb:
-# the store is observable out of the box. Both failures it guards are silent
-# — a missing initializer costs you the query log and every APM/lograge
+# Permanent infrastructure spec: the store is observable out of the box,
+# wired by the gem's railtie (no initializer in this app). Both failures it
+# guards are silent — losing it costs you the query log and every APM/lograge
 # subscriber, and nothing else breaks — so nothing here names a slice.
 RSpec.describe "Event store instrumentation" do
   let(:event) do
@@ -33,7 +33,7 @@ RSpec.describe "Event store instrumentation" do
   end
 
   it "logs them through the Rails logger by default" do
-    expect(Rails.application.config.x.event_store_log_subscriber)
+    expect(Rails.application.config.dcb_event_store.log_subscriber)
       .to be_a(DcbEventStore::RailsLogSubscriber)
 
     lines = []

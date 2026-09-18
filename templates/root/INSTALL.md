@@ -212,12 +212,11 @@ with the app.
 
 ## Event-store logging
 
-`config/initializers/dcb_event_store.rb` comes with the overlay and needs no
-setup: it swaps the gem's pub/sub engine for
-`DcbEventStore::ActiveSupportInstrumentation` (every `*.dcb` event then flows
-through `ActiveSupport::Notifications`, where APM agents, lograge and your own
-subscribers already look) and attaches `RailsLogSubscriber`, which renders
-them like ActiveRecord renders SQL:
+Nothing to set up: `dcb_event_store` ships a railtie, so in a Rails app it
+routes every `*.dcb` event (append, read, subscribe, projection, decision
+model) through `ActiveSupport::Notifications` — where APM agents, lograge and
+your own subscribers already look — and renders them like ActiveRecord
+renders SQL:
 
 ```
   DCB Append (1.4ms)  store=DcbEventStore::SqliteStore event_count=1 event_types=[Deposited] condition=false appended_count=1 last_position=7
@@ -225,11 +224,18 @@ them like ActiveRecord renders SQL:
 ```
 
 Like SQL queries it logs at **debug**: on in development and test, quiet in
-production until `RAILS_LOG_LEVEL=debug`. `EVENT_STORE_LOG=false` detaches
-the logger and leaves the notifications flowing.
+production until `RAILS_LOG_LEVEL=debug`. The knobs, in
+`config/application.rb` or an environment file:
 
-`spec/lib/event_store_instrumentation_spec.rb` holds both halves in place —
-without the initializer the store goes silent and nothing else fails.
+```ruby
+config.dcb_event_store.log = false            # attach no log subscriber
+config.dcb_event_store.logger = MyLogger.new  # default: Rails.logger
+config.dcb_event_store.pattern = "append.dcb" # default: every *.dcb event
+config.dcb_event_store.instrumentation = :standalone  # keep the gem's own engine
+```
+
+`spec/lib/event_store_instrumentation_spec.rb` holds it in place — the gem
+going silent breaks nothing else, so nothing else would catch it.
 
 ## Using PostgreSQL instead
 
