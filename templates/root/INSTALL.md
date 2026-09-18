@@ -134,6 +134,11 @@ end
 # Each slice's views/ is a view-lookup root, so app/slices/wallet/views/
 # wallets/show.html.erb is found as "wallets/show".
 config.paths["app/views"].concat(root.glob("app/slices/*/views").map(&:to_s))
+
+# Set here because config/ is off-limits to the slice agents. UTC is the
+# only zone that is right without knowing the business; override per
+# deployment. A rule needing a local calendar notion is request-feedback.
+config.time_zone = ENV.fetch("APP_TIME_ZONE", "UTC")
 ```
 
 ### `app/controllers/application_controller.rb`

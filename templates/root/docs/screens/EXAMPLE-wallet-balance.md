@@ -23,12 +23,26 @@ never as an error or a 404.
 
 ## What it sends back
 
-- `POST /wallets/:wallet_id/deposit` with `amount_cents` — rejections the
-  screen must translate: `"wallet is required"`,
-  `"amount must be a positive number of cents"`.
-- `POST /wallets/:wallet_id/withdraw` with `amount_cents` — additionally:
-  `"wallet is overdrawn"`,
-  `"the wallet changed while you were working — please retry"`.
+- `POST /wallets/:wallet_id/deposit` with `amount_cents`
+- `POST /wallets/:wallet_id/withdraw` with `amount_cents`
+
+Every rejection the screen must translate, in the two tiers
+(`.build-kit/CLAUDE.md`, "Commands return `Result`") — the first tier is the
+board's own wording and must not be paraphrased in a way that loses the
+modeller's meaning; the second is this app's, and is free to be reworded for
+the reader:
+
+**From the board (verbatim, shared vocabulary):**
+
+- `"wallet is overdrawn"` (withdraw)
+
+**Input shape and infrastructure (this app's own wording):**
+
+- `"wallet_id is required"`
+- `"amount_cents must be a positive integer"`
+- `"the wallet changed while you were working — please retry"` (withdraw;
+  a lost race, not a user error — the screen should invite a retry rather
+  than report a failure)
 
 ## States to render
 

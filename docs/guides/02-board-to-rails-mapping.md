@@ -95,10 +95,13 @@ events can't be scoped.
 | `Int` / `Long` | `Integer` |
 | `Double` | `Float` |
 | `Decimal` | integer minor units (cents) by default; `BigDecimal`-as-string only as a flagged decision — never `Float` for money |
+| `Number` | `Integer` when every example is integral, else `BigDecimal` — never `Float` |
 | `Date` / `DateTime` | ISO8601 `String` (`.iso8601`) — `Time` doesn't survive the JSON round-trip; parse on read |
 | `UUID` | `String` |
 | `Custom` + `subfields` | nested `Hash` with symbol keys |
 | `cardinality: "List"` | `Array` of the above |
+| anything else | inferred only if every example agrees; otherwise `request-feedback` |
+| `derived:<expr>()` | computed in the command, not an input — and `request-feedback` when the expression is opaque (`derived:code()`) |
 
 Event `data` is symbol-keyed and must stay JSON-safe — the store
 round-trips it with `symbolize_names: true`.

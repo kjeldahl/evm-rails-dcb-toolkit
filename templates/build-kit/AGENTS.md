@@ -91,7 +91,27 @@ about your board.
   the board's name, because symbols are never keywords.
 - A `generated: true` id is a defaulted keyword argument
   (`deposit_id: SecureRandom.uuid`), never an inline generator: otherwise
-  the board's literal example ids can't be asserted.
+  the board's literal example ids can't be asserted. Same for a
+  `derived:<expr>()` identifier — and an *opaque* derivation
+  (`derived:code()`) is `request-feedback`, never reverse-engineered from
+  the example.
+- **Two tiers of rejection message.** Board-modelled rules use the
+  `SPEC_ERROR` element's `title` verbatim (not `description`). Input-shape
+  checks use the kit's template: `"<field> is required"`, `"<field> must be
+  a positive integer"`. Don't invent a third style.
+- **A rule not keyed on an `idAttribute` still needs a tag.** Equality on
+  fixed fields → derive one tag from exactly those fields. Ranges, overlaps
+  and counts → tag the containing scope (table, day), fold it, check the
+  rule in Ruby. Untagged query + condition is the last resort and gets a
+  comment saying why.
+- **Times:** the board's example format is what the *spec passes in*; UTC
+  ISO8601 is what the *event stores*. Parse with an explicit `strptime`
+  format, never bare `Time.parse`. Never `Time.now`/`Date.today` — use
+  `Time.current`; the zone is set at install and a rule needing a local
+  calendar notion is `request-feedback`.
+- **A slice with no read model** answers JSON `201` with the identifiers it
+  established and HTML `redirect_back` — never another slice's route
+  helper.
 - Controllers parse params → call **one** command or reader → branch on
   `Result` → render/redirect. If a controller grows an `if` about domain
   state, the logic belongs in the command.

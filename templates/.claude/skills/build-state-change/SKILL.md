@@ -100,13 +100,29 @@ translated by `Field.type` into JSON-safe Ruby values:
 | `Decimal` | **Integer minor units (cents) by default** — event data round-trips through JSON, and a `Float` silently corrupts money. If the slice's own numbers aren't money-like (arbitrary precision, fractions of odd units), that's a real decision: `BigDecimal` serialized as a string, with parsing on every read. **Flag via `request-feedback` rather than picking silently** if the specifications do arithmetic on it. |
 | `Date` | ISO8601 `String` (`date.iso8601`), parsed on read |
 | `DateTime` | ISO8601 `String` (`time.iso8601`) — `Time` objects don't survive the JSON round-trip |
+| `Number` | `Integer` when **every** example in the slice is integral, otherwise `BigDecimal` — **never `Float`**. Money stays integer minor units. |
 | `UUID` | `String` |
 | `Custom` | a nested `Hash` (symbol keys) built from `subfields[]` |
+| anything else | infer **only** if every example agrees on one Ruby type, and say so in the constructor's comment; otherwise `request-feedback` |
 
 `cardinality: "List"` → an `Array` of the above. `optional: true` → the key
 is still present, value `nil` (keep the shape stable). `technicalAttribute:
 true` → a plain data key; note in the constructor's comment that it's for
 forensics/re-derivation and is never folded by any projection.
+
+**A `derived:<something>()` mapping is a computed field, not an input.** It
+is never a command parameter and never a board-supplied value:
+
+- **Derivation fully specified by `slice.json`** (a concatenation, a sum, a
+  copy of another field) → compute it in the command, before the event is
+  built.
+- **An opaque function — `derived:code()` — is `request-feedback`.** A rule
+  that isn't in the payload cannot be inferred from an example, and a wrong
+  derivation is invisible until production. Don't reverse-engineer it from
+  the example's shape.
+- A derived **identifier** is still an identifier: give it the injectable
+  keyword-argument treatment (`code: -> { ... }`, defaulted) so the board's
+  literal example can be asserted.
 
 ### The tags (a rule `slice.json` doesn't state)
 

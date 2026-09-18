@@ -36,7 +36,7 @@ RSpec.describe Wallet::Deposit do
     result = described_class.call(wallet_id: "w1", amount_cents: "-5")
 
     expect(result.failure?).to be(true)
-    expect(result.error).to eq("amount must be a positive number of cents")
+    expect(result.error).to eq("amount_cents must be a positive integer")
     expect(wallet_events("w1")).to be_empty
   end
 
@@ -44,6 +44,6 @@ RSpec.describe Wallet::Deposit do
     result = described_class.call(wallet_id: "w1", amount_cents: "lots")
 
     expect(result.failure?).to be(true)
-    expect(result.error).to eq("amount must be a positive number of cents")
+    expect(result.error).to eq("amount_cents must be a positive integer")
   end
 end

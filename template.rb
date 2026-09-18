@@ -99,6 +99,12 @@ SLICES_WIRING = <<~'WIRING'.freeze
   # Each slice's views/ is a view-lookup root, so
   # app/slices/wallet/views/wallets/show.html.erb is found as "wallets/show".
   config.paths["app/views"].concat(root.glob("app/slices/*/views").map(&:to_s))
+
+  # Set once, here, because config/ is off-limits to the slice agents: a
+  # business rule that needs a local calendar notion (a business day, a
+  # cutoff hour) is theirs to raise, not to guess. Domain code uses
+  # Time.current and stores iso8601 in UTC.
+  config.time_zone = ENV.fetch("APP_TIME_ZONE", "UTC")
 WIRING
 
 CONTROLLER_POLICY = <<~'POLICY'.freeze
