@@ -174,13 +174,20 @@ board Context" file convention, the generated-fields rules, and the
 [`dcb_event_store`](https://github.com/Kjeldahl/ruby-dcb) gem already is the
 read/fold/decide/append plumbing — the only project-owned code to read
 before your first slice is `lib/event_store.rb`, `lib/result.rb`, and the
-worked example in `app/slices/wallet/` + `spec/slices/wallet/`.
+worked example in `app/slices/wallet/` + `spec/slices/wallet/` — or, once
+the install cleanup has removed it, its permanent copy at
+`.build-kit/examples/wallet/`.
 
 **Screens are plain ERB or a brief.** A straightforward render/form of the
 slice's own data gets built (controller + view + route). Anything else:
 build the domain, write the **screen brief** at `docs/screens/<slice>.md` —
 template in `.build-kit/CLAUDE.md`, worked example at
 `docs/screens/EXAMPLE-wallet-balance.md` — and **stop**.
+
+**Every web-facing slice ships a request spec.** Domain specs never touch
+the route, the view lookup or the JSON body; each of those fails quietly
+(a missed template renders 204, not an error). See
+`spec/slices/wallet/requests_spec.rb`.
 
 **Quality gate:** `bundle exec rspec && bundle exec rubocop && bundle exec
 packwerk check` — no database server needed (specs default to the gem's in-memory

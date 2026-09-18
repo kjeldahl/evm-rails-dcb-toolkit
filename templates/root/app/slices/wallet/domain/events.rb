@@ -9,11 +9,13 @@ module Wallet
   module Events
     extend self
 
-    def deposited(wallet_id:, amount_cents:)
+    # depositId is a second idAttribute on the board, so it is a second tag:
+    # an element with more than one idAttribute gets more than one tag.
+    def deposited(wallet_id:, amount_cents:, deposit_id:)
       DcbEventStore::Event.new(
         type: "Deposited",
-        data: { wallet_id:, amount_cents: },
-        tags: [ "wallet:#{wallet_id}" ]
+        data: { wallet_id:, amount_cents:, deposit_id: },
+        tags: [ "wallet:#{wallet_id}", "deposit:#{deposit_id}" ]
       )
     end
 

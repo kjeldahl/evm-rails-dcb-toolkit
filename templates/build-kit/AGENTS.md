@@ -82,6 +82,36 @@ about your board.
   top-level `<Resource>Controller` and raises `uninitialized constant`.
 - JSON requests skip forgery protection (`ApplicationController`), so the
   API is callable with plain `curl`; HTML form posts keep it.
+- **The worked example survives the install cleanup** at
+  `.build-kit/examples/wallet/` (`slice/` + `spec/`). When a skill names
+  `app/slices/wallet/...` and the app has its own slices, that is where to
+  read it.
+- Ruby-keyword field names (`end`, `class`, `begin`) get a trailing
+  underscore **in Ruby code only** — the event `data` key and the tag keep
+  the board's name, because symbols are never keywords.
+- A `generated: true` id is a defaulted keyword argument
+  (`deposit_id: SecureRandom.uuid`), never an inline generator: otherwise
+  the board's literal example ids can't be asserted. Same for a
+  `derived:<expr>()` identifier — and an *opaque* derivation
+  (`derived:code()`) is `request-feedback`, never reverse-engineered from
+  the example.
+- **Two tiers of rejection message.** Board-modelled rules use the
+  `SPEC_ERROR` element's `title` verbatim (not `description`). Input-shape
+  checks use the kit's template: `"<field> is required"`, `"<field> must be
+  a positive integer"`. Don't invent a third style.
+- **A rule not keyed on an `idAttribute` still needs a tag.** Equality on
+  fixed fields → derive one tag from exactly those fields. Ranges, overlaps
+  and counts → tag the containing scope (table, day), fold it, check the
+  rule in Ruby. Untagged query + condition is the last resort and gets a
+  comment saying why.
+- **Times:** the board's example format is what the *spec passes in*; UTC
+  ISO8601 is what the *event stores*. Parse with an explicit `strptime`
+  format, never bare `Time.parse`. Never `Time.now`/`Date.today` — use
+  `Time.current`; the zone is set at install and a rule needing a local
+  calendar notion is `request-feedback`.
+- **A slice with no read model** answers JSON `201` with the identifiers it
+  established and HTML `redirect_back` — never another slice's route
+  helper.
 - Controllers parse params → call **one** command or reader → branch on
   `Result` → render/redirect. If a controller grows an `if` about domain
   state, the logic belongs in the command.
@@ -91,6 +121,16 @@ about your board.
 
 ## About tests
 
+- **A web-facing slice is not done without a request spec.** Its three
+  runtime failures — route missing `module:`, template outside the lookup
+  path (renders 204, no error), JSON body shape — are all invisible to
+  domain specs, which is exactly how they reached production once already.
+- **A race spec must assert the command's own `Result`**, with the
+  conflicting event landing inside the read → append window (wrap
+  `EventStore.decide`). Appending it beforehand only exercises the business
+  rule, so the retry branch goes untested.
+- **Two board scenarios may share a title** — `describe "<title>"` with one
+  `it` per scenario, told apart by their data. Never merge them.
 - **Specs are pure and fast by default** — the in-memory store resets
   around every example (`spec/support/event_store.rb`). Arrange by
   appending the scenario's `given` events **through the context's own

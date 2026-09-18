@@ -78,8 +78,38 @@ never the plumbing around them.
   Values must be JSON-safe: strings, integers, floats, booleans, arrays,
   nested hashes. Times as ISO8601 strings (`time.iso8601`), money as integer
   minor units (cents) unless the board says otherwise.
+- **"Verbatim" governs the input; ISO8601 governs the stored value.** The
+  board's examples are written the way the modeller types them
+  (`"14.03.2026 18:00"`). The spec passes that literal string into the
+  command; the command parses it; the event carries
+  `"2026-03-14T18:00:00Z"`; the spec asserts the *normalised* value. Parse
+  in the command's input-shape section with the format spelled out —
+  `Time.zone.strptime(value, "%d.%m.%Y %H:%M")`, derived from the board's
+  own examples — never bare `Time.parse`, which reads `03.04.2026` as a
+  different day depending on the machine. An unparseable value is an
+  input-shape rejection, not an exception. **Never store a display format in
+  an event, and never assert one on an event.** Examples in different
+  formats across one slice's scenarios, or a time whose rule depends on a
+  zone the board doesn't give, are `request-feedback`.
+- **Time zone.** The app's zone is set once at install
+  (`config.time_zone`, default `UTC`) and `config/` stays off-limits to you.
+  So: never `Time.now` or `Date.today` — take the time as input or use
+  `Time.current`; store `iso8601` in UTC; use `Time.zone.parse` for a board
+  value that is local wall-clock time. **A business rule that depends on a
+  local calendar notion** — a business day, a cutoff hour, "the same day", a
+  month boundary — **is `request-feedback`**: the zone is a deployment fact
+  the board doesn't carry, and guessing it makes the rule wrong for half the
+  year in any zone with DST.
 - **Tags are strings of the form `kind:value`** (`"wallet:#{wallet_id}"`).
   Normalise before tagging (e.g. emails `strip.downcase`).
+- **A board field whose snake_case name is a Ruby keyword gets a trailing
+  underscore — in Ruby code only.** `end` → `end_`, `class` → `class_`,
+  `begin` → `begin_`, and the same for `do`, `if`, `then`, `next`, `return`,
+  `self`, `nil`, `true`, `false`, `module`, `def`. The **event `data` key,
+  the tag and the spec's scenario title keep the board's name verbatim**
+  (`data: { end: end_ }`) — symbols are never keywords, so only parameters
+  and locals need it. `def call(end:)` does parse, but the local it binds is
+  then reachable only through `binding.local_variable_get(:end)`; don't.
 - **Rubocop omakase** (`rubocop-rails-omakase`) — run it, don't fight it.
 
 ## Architecture rules
@@ -98,6 +128,13 @@ never the plumbing around them.
   raised — rescue it and return a retry `Result.failure`. A command with no
   read-dependent invariant (pure fact recording, e.g. a deposit) appends
   without a condition, deliberately.
+- **Generated identifiers are a defaulted keyword argument, never an inline
+  `SecureRandom.uuid`.** A board field marked `generated: true` is minted in
+  the command — `def self.call(..., deposit_id: SecureRandom.uuid)` — so a
+  spec can pass the scenario's literal example (`"CONF1RM-0042"`) and assert
+  on it. Hard-coding the generator inside the body makes the board's own
+  example data untestable, which is the one thing specs here exist to check.
+  Worked example: `Wallet::Deposit`.
 - **Only a context's `Events` module constructs the events it owns, and only
   that context appends them.** One constructor method per owned event type,
   returning a `DcbEventStore::Event` with the exact type, data and tags.
@@ -108,8 +145,32 @@ never the plumbing around them.
   `DcbEventStore::Projection.new(initial_state:, handlers:, query:)` and the
   query's `event_types` + `tags` decide everything it sees.
 - **Commands return `Result`** (`lib/result.rb`): `Result.success(value)` /
-  `Result.failure("message")`. Rejection messages come from the board's
-  scenarios **verbatim**.
+  `Result.failure("message")`. **Rejection messages come from two places,
+  and never from your imagination:**
+  - **Business-rule rejections** — anything decided from folded state, and
+    anything the board models as a `SPEC_ERROR` — carry the board's message
+    **verbatim**, and the spec asserts it exactly. Verbatim means the
+    `SPEC_ERROR` element's **`title`**: it is the field the board always
+    carries and the text on the card, where `description` is optional prose
+    that drifts. Use `description` only when `title` is empty. Never merge
+    the two, never reword, never append context ("…for wallet w1"). If the
+    two disagree about *what* is forbidden rather than how it reads, that's
+    a modelling defect — `request-feedback`, don't pick one.
+  - **Input-shape rejections** — the pure checks before any store read
+    (nil, blank, type, range) — are **the kit's, not the board's**; the
+    board doesn't model them. Use this template verbatim so every slice
+    sounds the same, with `<field>` the board's field name in snake_case:
+
+    | check | message |
+    |---|---|
+    | missing / blank | `"<field> is required"` |
+    | wrong type | `"<field> must be a <type>"` |
+    | out of range | `"<field> must be a positive integer"` (or the board's stated range) |
+    | unparseable time | `"<field> must be a date and time"` |
+
+    A board scenario that *does* specify one of these wins over the
+    template. A screen brief lists the two tiers separately — only the
+    first is shared vocabulary with the modeller.
 
 ## Building a slice
 
@@ -167,6 +228,39 @@ carry many tags and belong to many consistency boundaries at once.
 If an element has no `idAttribute: true` field at all, **stop and invoke
 `request-feedback`**: an untagged event can't be scoped, and a genuinely
 global one is rare enough to confirm rather than assume.
+
+### When the rule isn't keyed on an `idAttribute` at all
+
+"No duplicate reservation for the same email, start and end" is not about
+identity, but it still needs a tag — DCB has no other consistency
+mechanism, and an append condition is only as narrow as the query it
+carries. **Pick the coarsest tag that provably contains every event which
+could violate the rule, and no coarser:**
+
+1. **Equality on a fixed set of fields** → derive one deterministic tag from
+   exactly those fields, normalised (`strip.downcase` for text, `iso8601`
+   for times), on the event *and* in the decision model's query:
+   `"slot:#{email}|#{starts_at.iso8601}|#{ends_at.iso8601}"`. The condition
+   then serialises exactly the appends that could collide, and nothing else.
+2. **Ranges, overlaps, counts, "at most N"** — no single equality tag can
+   exist. Tag the **containing scope the rule is scoped to** (the table, the
+   room, the day: `"table:#{table_id}"`, `"day:#{date.iso8601}"`), fold that
+   scope, and check the precise rule in Ruby against the folded state. The
+   tag guarantees you *saw* every candidate; the fold decides. This is the
+   DCB replacement for "SELECT … then INSERT", and most non-trivial
+   invariants land here.
+3. **An untagged query plus an append condition is the last resort.** It is
+   correct, and it is O(all events) on every command *and* serialises every
+   append of those types application-wide. Only when no containing scope
+   exists — and say so in a comment on the command.
+
+Either way the derived tag is symmetric, exactly like an `idAttribute` one:
+on the event and in every query that must see it.
+
+**`request-feedback`** when the rule's scope is genuinely global ("no two
+reservations anywhere may share a code") and the volume isn't obviously
+small: that's a registry or a different boundary — an architecture decision,
+not a slice decision.
 
 ## Generated fields — this stack has a home for them
 
@@ -230,6 +324,25 @@ reference) and serves the merged document at `GET /openapi.json`. Rules:
 - Keep controller and `openapi.rb` in sync — the OpenAPI spec
   (`spec/lib/open_api_spec.rb`) guards document validity ($refs resolve),
   but only you guard truthfulness.
+- **Success when the slice has no read model.** JSON answers `201 Created`
+  with `{ "<id_field>": "<value>" }` — the identifiers the command
+  established (the values behind its own tags), nothing else. Never `{}`,
+  never an invented read model, never another slice's. HTML does
+  `redirect_back fallback_location: root_path` with the success flash:
+  that's the only redirect target a slice can name without reaching across a
+  boundary — **never another slice's route helper**, which is a cross-slice
+  dependency packwerk cannot see. When the slice *does* have a read model,
+  the normal rule stands: `200 OK` with that model (worked example: the
+  wallet balance). A board screen implying a specific landing page is a
+  screen brief, not a guess.
+- **Every web-facing slice ships a request spec** (`type: :request`) in
+  `spec/slices/<context>/requests_spec.rb`: the HTML screen renders 200 and
+  shows the read model, the JSON endpoint returns the documented body, and a
+  rejected command answers 422 with the board's message. Domain specs cannot
+  see the web layer at all, and each of its failure modes is quiet — a
+  namespaced route without `module:` only raises at request time, and a
+  template the lookup path misses renders **204 No Content**, not an error.
+  Worked example: `spec/slices/wallet/requests_spec.rb`.
 
 Worked example: `app/slices/wallet/web/openapi.rb`.
 
@@ -254,8 +367,10 @@ This stack renders **plain server-side ERB**. When a slice has `screens`:
   a screen brief at `docs/screens/<slice-kebab>.md`, and stop.** Worked
   example: `docs/screens/EXAMPLE-wallet-balance.md` (read it for how much
   detail is worth writing, then delete it once you have your own). Every
-  rejection message the command can return goes in the brief — the screen
-  translates them and can't guess them.
+  rejection message the command can return goes in the brief, **split into
+  the two tiers** (board-verbatim vs this app's input-shape wording) — the
+  screen translates them and can't guess them, and it needs to know which
+  half it may reword.
 
 ## Slice shape (what one board slice typically adds)
 
@@ -273,6 +388,19 @@ config/routes.rb                             # one resources/route line, module:
 
 **Once you have a context built, read it before the next slice in it.**
 Existing code beats these templates: if they diverge, the template is stale.
+
+**The worked example is permanent.** `app/slices/wallet/` is deleted at the
+end of the install; the copy at **`.build-kit/examples/wallet/`** (`slice/`
+and `spec/`) is not, and is what every reference to "the worked example" in
+these skills means once the app has its own slices. It sits outside the
+autoload and eager-load paths and is excluded from packwerk, so it never
+boots with the app.
+
+**Two board scenarios can share a title** (the board does not enforce
+uniqueness). One `it` per scenario still holds — group them under a
+`describe "<the shared title>"` and let each example's *data* tell them
+apart. Never merge two scenarios into one example, and never invent a
+distinguishing title the board does not have.
 
 ## Before you start
 

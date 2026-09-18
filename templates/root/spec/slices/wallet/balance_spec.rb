@@ -8,16 +8,16 @@ RSpec.describe Wallet::Balance do
   end
 
   it "deposits and withdrawals fold to the running balance" do
-    EventStore.append(Wallet::Events.deposited(wallet_id: "w1", amount_cents: 500))
+    EventStore.append(Wallet::Events.deposited(wallet_id: "w1", amount_cents: 500, deposit_id: "DEP-1"))
     EventStore.append(Wallet::Events.withdrawn(wallet_id: "w1", amount_cents: 150))
-    EventStore.append(Wallet::Events.deposited(wallet_id: "w1", amount_cents: 25))
+    EventStore.append(Wallet::Events.deposited(wallet_id: "w1", amount_cents: 25, deposit_id: "DEP-2"))
 
     expect(described_class.find(wallet_id: "w1")).to eq(375)
   end
 
   it "events tagged for other wallets are never folded in" do
-    EventStore.append(Wallet::Events.deposited(wallet_id: "w1", amount_cents: 500))
-    EventStore.append(Wallet::Events.deposited(wallet_id: "w2", amount_cents: 9_000))
+    EventStore.append(Wallet::Events.deposited(wallet_id: "w1", amount_cents: 500, deposit_id: "DEP-3"))
+    EventStore.append(Wallet::Events.deposited(wallet_id: "w2", amount_cents: 9_000, deposit_id: "DEP-4"))
 
     expect(described_class.find(wallet_id: "w1")).to eq(500)
   end

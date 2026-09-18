@@ -31,8 +31,9 @@
 
 .byebug_history
 
-# Node, if you ever add a JS toolchain.
-/node_modules/
+# Node. Unanchored on purpose: the eventmodelers CLI installs
+# .build-kit/node_modules/, which a leading-slash pattern would not match.
+node_modules/
 /yarn-error.log
 yarn-debug.log*
 .yarn-integrity

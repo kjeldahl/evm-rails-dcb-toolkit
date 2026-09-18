@@ -5,8 +5,8 @@ require "rails_helper"
 RSpec.describe Wallet::Withdraw do
   # Arrange through the context's own Events constructors — the same shapes
   # production writes, so the fold under test sees real events.
-  def deposit(wallet_id, amount_cents)
-    EventStore.append(Wallet::Events.deposited(wallet_id:, amount_cents:))
+  def deposit(wallet_id, amount_cents, deposit_id: SecureRandom.uuid)
+    EventStore.append(Wallet::Events.deposited(wallet_id:, amount_cents:, deposit_id:))
   end
 
   it "a withdrawal within the balance succeeds" do
@@ -39,16 +39,21 @@ RSpec.describe Wallet::Withdraw do
 
   it "a concurrent write between read and append is told to retry" do
     deposit("w1", 500)
-    # Recreate the race deterministically: capture the decision the command
-    # would have made, land a conflicting event, then append with the stale
-    # condition — exactly what the command's rescue turns into a retry.
-    stale = EventStore.decide(balance: Wallet::Balance.projection(wallet_id: "w1"))
-    EventStore.append(Wallet::Events.withdrawn(wallet_id: "w1", amount_cents: 400))
+    # The conflicting event has to land *inside* the command's own read →
+    # append window; appending it beforehand only changes the balance the
+    # command reads, and the business rule — not the condition — is what
+    # then rejects it. Wrapping the read is what makes the race
+    # deterministic, and it is the command's own Result that is asserted:
+    # a spec that only proves the store raises never reaches the rescue.
+    allow(EventStore).to receive(:decide).and_wrap_original do |read, *args, **projections|
+      decision = read.call(*args, **projections)
+      EventStore.append(Wallet::Events.withdrawn(wallet_id: "w1", amount_cents: 100))
+      decision
+    end
 
-    expect {
-      EventStore.append(Wallet::Events.withdrawn(wallet_id: "w1", amount_cents: 200), stale.append_condition)
-    }.to raise_error(DcbEventStore::ConditionNotMet)
-    # And the command translates that raise for its caller:
-    expect(described_class.call(wallet_id: "w1", amount_cents: 200).error).to eq("wallet is overdrawn")
+    result = described_class.call(wallet_id: "w1", amount_cents: 200)
+
+    expect(result.failure?).to be(true)
+    expect(result.error).to eq("the wallet changed while you were working — please retry")
   end
 end
