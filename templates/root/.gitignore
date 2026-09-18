@@ -1,0 +1,38 @@
+# Rails writes this file only when it initialises git — with `rails new
+# --skip-git` you get none, and config/master.key ends up staged on the first
+# commit. The kit ships it so that can't happen.
+
+# Bundler config.
+/.bundle
+
+# Logfiles and tempfiles.
+/log/*
+/tmp/*
+!/log/.keep
+!/tmp/.keep
+!/tmp/pids/
+!/tmp/pids/.keep
+
+# The event store's SQLite files (config/event_store.yml `path:`).
+/storage/*
+!/storage/.keep
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+
+# Credentials keys — never commit these.
+/config/master.key
+/config/credentials/*.key
+
+# Local environment overrides (EVENT_STORE_* and friends).
+.env
+.env.*
+!.env.example
+
+.byebug_history
+
+# Node, if you ever add a JS toolchain.
+/node_modules/
+/yarn-error.log
+yarn-debug.log*
+.yarn-integrity

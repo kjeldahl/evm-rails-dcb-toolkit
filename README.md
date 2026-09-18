@@ -4,8 +4,10 @@ Turns slices from an [eventmodelers.ai](https://eventmodelers.ai) board
 (Martin Dilger's / Nebulit's Event Modeling tool) into a running **Rails 8**
 application, event-sourced on
 [`dcb_event_store`](https://github.com/Kjeldahl/ruby-dcb) — a
-PostgreSQL-backed event store using **Dynamic Consistency Boundaries (DCB)**:
-tags and append conditions instead of aggregate-per-stream.
+SQLite- or PostgreSQL-backed event store using **Dynamic Consistency
+Boundaries (DCB)**: tags and append conditions instead of
+aggregate-per-stream. A produced app defaults to **SQLite** — no database
+server to install — and switches to PostgreSQL with one env var.
 
 A build kit is the piece that makes the board executable: an agent picks up a
 slice marked `Planned` on the board, reads its `slice.json`, implements it
@@ -41,6 +43,7 @@ New here? Start with the guides:
 | `packwerk.yml`, `package.yml`, `config/packwerk/` | packwerk slice-boundary gate (one package per slice; cross-slice constant references fail the build) |
 | `app/slices/wallet/` + `spec/slices/wallet/` | one worked bounded context (deposit, withdraw, balance — ERB screen, JSON API, OpenAPI registration) |
 | `docs/screens/` | a worked example of a screen brief |
+| `.gitignore` | Rails' ignores + `config/master.key`, `storage/`, `*.sqlite3`, `node_modules/` — `rails new --skip-git` writes none |
 
 The shared skills — `connect`, `learn-eventmodelers-api`,
 `update-slice-status`, `request-feedback`, `load-slice` — come from the CLI
@@ -140,10 +143,10 @@ bundle exec rspec && bundle exec rubocop && bundle exec packwerk check
 ```
 
 Specs default to the gem's **in-memory store** (per-process, parallel-safe;
-no Postgres needed to run the suite) — `EVENT_STORE_ADAPTER=postgres bundle
-exec rspec` runs the same suite against the real store. Every board
-`specifications[]` scenario becomes one spec example named after the
-scenario's literal title.
+no database at all to run the suite) — `EVENT_STORE_ADAPTER=sqlite bundle
+exec rspec` (or `=postgres`) runs the same suite against a real SQL store.
+Every board `specifications[]` scenario becomes one spec example named after
+the scenario's literal title.
 
 ## Provenance
 

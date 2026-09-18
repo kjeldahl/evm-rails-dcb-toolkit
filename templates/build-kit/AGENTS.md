@@ -40,8 +40,10 @@ about your board.
   from a handler when state is nil-guarded (`state&.with(...)`) keeps
   not-yet-created entities as `nil` instead of half-built.
 - The in-memory adapter (`EVENT_STORE_ADAPTER=memory`, the spec default) is
-  per-process and behaviour-equivalent for append/read/conditions —
-  Postgres is only needed for the dev server and the integration spec run.
+  per-process and behaviour-equivalent for append/read/conditions. The dev
+  server runs on SQLite (`storage/<env>.sqlite3`, no server to install);
+  `EVENT_STORE_ADAPTER=sqlite`/`postgres` runs the same suite against a real
+  SQL store.
 
 ## About `slice.json`
 
@@ -70,7 +72,16 @@ about your board.
 - Slice `views/` directories are appended to the view paths **at boot** —
   the directory must exist when the server starts (keep a `.keep` file);
   view resource directory names must be unique across slices because they
-  share one lookup path.
+  share one lookup path. `ApplicationController.local_prefixes` strips the
+  slice namespace, so `Wallet::WalletsController#show` renders
+  `app/slices/wallet/views/wallets/show.html.erb` — a template under a
+  `views/<context>/<resource>/` path is never found (the symptom is an
+  empty 204 response, not an error).
+- **Route lines need `module: :<context>`.** The controller is
+  `<Context>::<Resource>Controller`; without the option Rails looks up a
+  top-level `<Resource>Controller` and raises `uninitialized constant`.
+- JSON requests skip forgery protection (`ApplicationController`), so the
+  API is callable with plain `curl`; HTML form posts keep it.
 - Controllers parse params → call **one** command or reader → branch on
   `Result` → render/redirect. If a controller grows an `if` about domain
   state, the logic belongs in the command.

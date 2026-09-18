@@ -78,7 +78,8 @@ way round:
 ## Step 3 — The route and the signature check
 
 **Files:** `app/slices/<context>/web/<provider>_webhooks_controller.rb`,
-one `post` line in `config/routes.rb`.
+one `post` line in `config/routes.rb` (with `module: :<context>` — the
+controller is namespaced).
 
 ```ruby
 module <Context>

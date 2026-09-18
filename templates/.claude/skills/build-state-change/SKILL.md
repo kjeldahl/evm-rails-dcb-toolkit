@@ -234,7 +234,10 @@ business rule.
   (success renders the relevant read model; failure renders
   `{ error: result.error }` with `422`). No domain logic. Worked example:
   `app/slices/wallet/web/wallets_controller.rb`.
-- **Route:** one `resources`/`post` line in `config/routes.rb`.
+- **Route:** one `resources`/`post` line in `config/routes.rb`, **with
+  `module: :<context>`** — the controller is namespaced
+  (`<Context>::<Resource>Controller`), and without it Rails raises
+  `uninitialized constant <Resource>Controller`.
 - **OpenAPI:** add (or extend) `app/slices/<context>/web/openapi.rb` —
   `<Context>::Openapi.paths`/`.schemas` documenting exactly these routes,
   the command's fields as the request schema, and the rejection shape. See
@@ -289,8 +292,8 @@ Beyond the board's scenarios, always add:
   condition raises `DcbEventStore::ConditionNotMet` — the pattern is worked
   in `spec/slices/wallet/withdraw_spec.rb`.
 
-Specs run on the in-memory store, reset around every example — no Postgres,
-no mocking of `EventStore`.
+Specs run on the in-memory store, reset around every example — no database
+server, no mocking of `EventStore`.
 
 ---
 

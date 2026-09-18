@@ -1,5 +1,17 @@
+# Event store connection. Three adapters:
+#
+#   sqlite   (default) one file, no server — `path:` below, relative to
+#            Rails.root. Requires the sqlite3 gem.
+#   postgres host/port/username/password/database below. Requires the pg gem.
+#   memory   the gem's InMemoryStore, per-process — the test default.
+#
+# EVENT_STORE_ADAPTER switches backend; every other value is env-overridable
+# too (EVENT_STORE_PATH, EVENT_STORE_DATABASE, EVENT_STORE_HOST/PORT/USER/
+# PASSWORD). `path:` is read by the sqlite adapter, `database:` and the
+# host/credentials by the postgres one — both are always present so switching
+# adapter is a single env var.
 default: &default
-  adapter: <%= ENV.fetch("EVENT_STORE_ADAPTER", "postgres") %>
+  adapter: <%= ENV.fetch("EVENT_STORE_ADAPTER", "sqlite") %>
   host: <%= ENV.fetch("EVENT_STORE_HOST", "localhost") %>
   port: <%= ENV.fetch("EVENT_STORE_PORT", 5432) %>
   username: <%= ENV.fetch("EVENT_STORE_USER", "my_app") %>
@@ -7,16 +19,19 @@ default: &default
 
 development:
   <<: *default
-  database: my_app_development
+  path: <%= ENV.fetch("EVENT_STORE_PATH", "storage/development.sqlite3") %>
+  database: <%= ENV.fetch("EVENT_STORE_DATABASE", "my_app_development") %>
 
 # Tests default to the in-memory store (fast, per-process isolation). Set
-# EVENT_STORE_ADAPTER=postgres to run the same suite against the real
-# PostgreSQL-backed store.
+# EVENT_STORE_ADAPTER=sqlite (or postgres) to run the same suite against a
+# real SQL store.
 test:
   <<: *default
   adapter: <%= ENV.fetch("EVENT_STORE_ADAPTER", "memory") %>
-  database: my_app_test
+  path: <%= ENV.fetch("EVENT_STORE_PATH", "storage/test.sqlite3") %>
+  database: <%= ENV.fetch("EVENT_STORE_DATABASE", "my_app_test") %>
 
 production:
   <<: *default
+  path: <%= ENV.fetch("EVENT_STORE_PATH", "storage/production.sqlite3") %>
   database: <%= ENV.fetch("EVENT_STORE_DATABASE", "my_app_production") %>

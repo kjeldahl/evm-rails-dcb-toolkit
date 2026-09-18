@@ -39,7 +39,7 @@ followed, so you can maintain it, or build the next one.
 
 - [`gklijs/skilj-build-kit`](https://github.com/gklijs/skilj-build-kit)
   (Rust · skilj) — the community kit closest in spirit: also
-  Postgres-backed, also **DCB instead of classic aggregates**, and the
+  SQL-backed, also **DCB instead of classic aggregates**, and the
   file-by-file structural reference for this kit (README shape, blueprint
   CLAUDE.md, seeded AGENTS.md, screen briefs, the
   "decisions made explicit, not silent" discipline).
