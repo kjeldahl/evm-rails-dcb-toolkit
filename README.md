@@ -53,6 +53,7 @@ New here? Start with the guides:
 | `.build-kit/AGENTS.md` | seeded lessons, read before every slice |
 | `.build-kit/lib/*.md` | the agent-loop prompts |
 | `lib/event_store.rb`, `lib/result.rb`, `config/event_store.yml`, `lib/tasks/` | the shared plumbing every slice uses |
+| `config/initializers/dcb_event_store.rb` | observability, on by default: `*.dcb` events routed through `ActiveSupport::Notifications`, rendered in the log like SQL queries |
 | `lib/open_api.rb` + `app/controllers/openapi_controller.rb` | OpenAPI 3.1 document assembled from slice-local `web/openapi.rb` registrations, served at `GET /openapi.json` |
 | `packwerk.yml`, `package.yml`, `config/packwerk/` | packwerk slice-boundary gate (one package per slice; cross-slice constant references fail the build) |
 | `app/slices/wallet/` + `spec/slices/wallet/` | one worked bounded context (deposit, withdraw, balance — ERB screen, JSON API, OpenAPI registration) |

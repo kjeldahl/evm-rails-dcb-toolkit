@@ -210,6 +210,27 @@ with it: `.build-kit/examples/wallet/` holds a permanent copy, outside the
 autoload and eager-load paths and excluded from packwerk, so it never boots
 with the app.
 
+## Event-store logging
+
+`config/initializers/dcb_event_store.rb` comes with the overlay and needs no
+setup: it swaps the gem's pub/sub engine for
+`DcbEventStore::ActiveSupportInstrumentation` (every `*.dcb` event then flows
+through `ActiveSupport::Notifications`, where APM agents, lograge and your own
+subscribers already look) and attaches `RailsLogSubscriber`, which renders
+them like ActiveRecord renders SQL:
+
+```
+  DCB Append (1.4ms)  store=DcbEventStore::SqliteStore event_count=1 event_types=[Deposited] condition=false appended_count=1 last_position=7
+  DCB Read (0.4ms)  store=DcbEventStore::SqliteStore query=Query[Deposited,Withdrawn{wallet:w1}] event_count=7
+```
+
+Like SQL queries it logs at **debug**: on in development and test, quiet in
+production until `RAILS_LOG_LEVEL=debug`. `EVENT_STORE_LOG=false` detaches
+the logger and leaves the notifications flowing.
+
+`spec/lib/event_store_instrumentation_spec.rb` holds both halves in place —
+without the initializer the store goes silent and nothing else fails.
+
 ## Using PostgreSQL instead
 
 SQLite is the default because it needs no server. PostgreSQL is worth
