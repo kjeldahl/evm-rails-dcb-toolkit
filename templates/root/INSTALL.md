@@ -124,6 +124,11 @@ end
 protect_from_forgery with: :exception, unless: -> { request.format.json? }
 ```
 
+Both failures are silent if you skip this — a namespaced controller's template
+is simply never found (204 No Content, no error) and JSON calls 422 — so
+`spec/controllers/application_controller_spec.rb` asserts them. It stays after
+the worked example is deleted.
+
 ## 5 · Event store
 
 Connection settings live in `config/event_store.yml` (env-overridable:
