@@ -56,6 +56,7 @@ New here? Start with the guides:
 | `lib/open_api.rb` + `app/controllers/openapi_controller.rb` | OpenAPI 3.1 document assembled from slice-local `web/openapi.rb` registrations, served at `GET /openapi.json` |
 | `packwerk.yml`, `package.yml`, `config/packwerk/` | packwerk slice-boundary gate (one package per slice; cross-slice constant references fail the build) |
 | `app/slices/wallet/` + `spec/slices/wallet/` | one worked bounded context (deposit, withdraw, balance — ERB screen, JSON API, OpenAPI registration) |
+| `app/assets/stylesheets/_kit.css` | ~100 lines of classless baseline styling (light + dark) so generated ERB screens look presentable with no classes to learn |
 | `docs/screens/` | a worked example of a screen brief |
 | `.gitignore` | Rails' ignores + `config/master.key`, `storage/`, `*.sqlite3`, `node_modules/` — `rails new --skip-git` writes none |
 
@@ -143,7 +144,9 @@ append-only `events` table. `rails new` runs with `--skip-active-record`.
 
 ## What this kit does NOT do
 
-**Screens beyond plain ERB.** A produced app renders server-side ERB views —
+**Screens beyond plain ERB.** A produced app renders server-side ERB views,
+styled by a small classless stylesheet (semantic elements only — no classes,
+no framework, light and dark) —
 the kit builds a functional screen when the slice's data makes it
 unambiguous, and otherwise writes a **screen brief** at
 `docs/screens/<slice>.md` (worked example:

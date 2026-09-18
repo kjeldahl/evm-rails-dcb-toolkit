@@ -1,17 +1,30 @@
+<%# Plain semantic ERB — the kit's classless stylesheet (app/assets/
+    stylesheets/_kit.css) styles these elements directly, so there are no
+    classes to add and nothing to keep in sync. Label every field, give each
+    input its own id (two forms on one screen would otherwise collide), and
+    let <output> carry the read model's headline value. %>
 <h1>Wallet <%= @wallet_id %></h1>
 
 <% if flash[:alert] %>
   <p role="alert"><%= flash[:alert] %></p>
 <% end %>
+<% if flash[:notice] %>
+  <p role="status"><%= flash[:notice] %></p>
+<% end %>
 
-<p>Balance: <%= number_to_currency(@balance_cents / 100.0) %></p>
+<p>
+  Balance<br>
+  <output><%= number_to_currency(@balance_cents / 100.0) %></output>
+</p>
 
 <%= form_with url: deposit_wallet_path(@wallet_id) do |form| %>
-  <%= form.number_field :amount_cents, min: 1, required: true %>
-  <%= form.submit "Deposit (cents)" %>
+  <%= form.label :amount_cents, "Deposit (cents)", for: "deposit_amount_cents" %>
+  <%= form.number_field :amount_cents, min: 1, required: true, id: "deposit_amount_cents" %>
+  <%= form.submit "Deposit" %>
 <% end %>
 
 <%= form_with url: withdraw_wallet_path(@wallet_id) do |form| %>
-  <%= form.number_field :amount_cents, min: 1, required: true %>
-  <%= form.submit "Withdraw (cents)" %>
+  <%= form.label :amount_cents, "Withdraw (cents)", for: "withdraw_amount_cents" %>
+  <%= form.number_field :amount_cents, min: 1, required: true, id: "withdraw_amount_cents" %>
+  <%= form.submit "Withdraw" %>
 <% end %>
