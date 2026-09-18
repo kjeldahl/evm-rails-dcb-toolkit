@@ -28,6 +28,34 @@ RSpec.describe "Wallet endpoints", type: :request do
     expect(response.parsed_body).to eq("wallet_id" => "w1", "balance_cents" => 500)
   end
 
+  it "renders the list screen" do
+    Wallet::Deposit.call(wallet_id: "w1", amount_cents: 500)
+    Wallet::Withdraw.call(wallet_id: "w1", amount_cents: 150)
+
+    get "/wallets/w1/history"
+
+    expect(response).to have_http_status(200)
+    expect(response.body).to include("Deposit", "Withdrawal", "$3.50")
+  end
+
+  it "renders an empty list without falling over" do
+    get "/wallets/nope/history"
+
+    expect(response).to have_http_status(200)
+    expect(response.body).to include("No activity yet")
+  end
+
+  it "serves the list as JSON with times in ISO8601" do
+    Wallet::Deposit.call(wallet_id: "w1", amount_cents: 500)
+
+    get "/wallets/w1/history.json"
+
+    expect(response).to have_http_status(200)
+    entry = response.parsed_body.fetch("entries").sole
+    expect(entry).to include("kind" => "Deposit", "amount_cents" => 500, "balance_cents" => 500)
+    expect(entry.fetch("at")).to match(/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\z/)
+  end
+
   it "accepts a token-less JSON command, as documented in web/openapi.rb" do
     post "/wallets/w1/deposit.json",
          params: { amount_cents: 500 }.to_json,

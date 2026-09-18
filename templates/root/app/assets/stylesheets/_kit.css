@@ -1,0 +1,127 @@
+/*
+ * Baseline styling for the plain ERB screens this kit generates.
+ *
+ * Deliberately **classless**: every rule targets a semantic element, so a
+ * slice's view gets a readable screen from `<h1>`, `<form>`, `<label>` and
+ * `<table>` alone — no class names for an agent to learn, invent or get
+ * wrong, and nothing to keep in sync with a design system the board never
+ * described. Write semantic HTML and it looks right.
+ *
+ * Loaded by the layout's `stylesheet_link_tag :app`, which includes every
+ * CSS file under app/assets sorted by name: the leading underscore sorts
+ * this file before `application.css`, so anything the app adds there wins.
+ *
+ * ~100 lines on purpose. If a screen needs more than this, it needs a
+ * designer, which is what a screen brief (docs/screens/) is for.
+ */
+
+:root {
+  color-scheme: light dark;
+  --bg: #fbfbfa;
+  --surface: #fff;
+  --text: #1c1c1a;
+  --muted: #6b6b66;
+  --line: #e2e2dd;
+  --accent: #1c5d3a;
+  --accent-text: #fff;
+  --alert: #8a2c2c;
+  --alert-bg: #fdf0f0;
+  --radius: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17181a;
+    --surface: #1f2124;
+    --text: #e8e8e4;
+    --muted: #a0a09a;
+    --line: #34363a;
+    --accent: #6fd39b;
+    --accent-text: #10241a;
+    --alert: #f3a2a2;
+    --alert-bg: #2a1c1c;
+  }
+}
+
+body {
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+  max-width: 44rem;
+  background: var(--bg);
+  color: var(--text);
+  font: 1rem/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+h1, h2, h3 { line-height: 1.25; margin: 0 0 1rem; font-weight: 650; }
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.25rem; margin-top: 2.5rem; }
+p { margin: 0 0 1rem; }
+a { color: var(--accent); }
+small, .muted { color: var(--muted); }
+
+/* Flash messages: role="alert" for rejections, role="status" for success. */
+[role="alert"], [role="status"] {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+[role="alert"] { border-left-color: var(--alert); color: var(--alert); background: var(--alert-bg); }
+
+/* A read model's headline value: <output>42</output> */
+output {
+  display: inline-block;
+  font-size: 1.5rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: end;
+  margin: 0 0 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+label { display: block; width: 100%; font-size: 0.875rem; color: var(--muted); }
+
+input:not([type="hidden"]), select, textarea {
+  flex: 1 1 10rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+}
+input[type="submit"], button {
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+  cursor: pointer;
+}
+input[type="submit"]:hover, button:hover { filter: brightness(1.08); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/*
+ * Uniformly left-aligned: classless CSS cannot know which columns hold
+ * numbers, and right-aligning only the last one makes a table with two
+ * numeric columns look broken. Tabular figures keep digits in a column
+ * lining up regardless. A screen that really needs right-aligned money is
+ * past this baseline — that's screen-brief territory.
+ */
+table { width: 100%; border-collapse: collapse; margin: 0 0 1.5rem; }
+th, td { padding: 0.5rem 0.625rem; text-align: left; border-bottom: 1px solid var(--line); }
+th { font-size: 0.875rem; color: var(--muted); font-weight: 600; }
+td { font-variant-numeric: tabular-nums; }
+tbody tr:last-child td { border-bottom: 0; }
+
+ul, ol { margin: 0 0 1rem; padding-left: 1.25rem; }
+li { margin: 0.25rem 0; }

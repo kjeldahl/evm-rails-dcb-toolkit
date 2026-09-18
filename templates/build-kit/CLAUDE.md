@@ -352,7 +352,25 @@ Worked example: `app/slices/wallet/web/openapi.rb`.
 `dependencies`, `description`) — **not as a design.** Whatever
 HTML/CSS/React prototype lives on the board never travels in the payload.
 
-This stack renders **plain server-side ERB**. When a slice has `screens`:
+This stack renders **plain server-side ERB**, on top of a **classless
+stylesheet** the kit ships (`app/assets/stylesheets/_kit.css`): every rule
+targets a semantic element, so a screen built from `<h1>`, `<form>`,
+`<label>`, `<output>` and `<table>` is already styled — light and dark.
+
+**So: write semantic HTML and add nothing.** No `class` attributes, no
+`style` attributes, no CSS framework, no `<div>` scaffolding. There is no
+design system to learn and none to keep in sync; a screen that genuinely
+needs more than the baseline needs a designer, which is what a screen brief
+is for. Two conventions the stylesheet relies on:
+
+- a read model's headline value goes in `<output>`;
+- flashes are `<p role="alert">` (rejection) and `<p role="status">`
+  (success).
+
+If a screen has two forms, give each input its own `id` and a `<label
+for=…>` — `form_with` would otherwise emit the same id twice.
+
+When a slice has `screens`:
 
 - If the screen is a straightforward render of the slice's own read model
   and/or a form for its own command (the common case), build it: a thin

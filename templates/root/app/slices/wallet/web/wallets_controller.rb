@@ -13,6 +13,18 @@ module Wallet
       end
     end
 
+    # The list read model. Same shape as #show: parse params, call one
+    # reader, render both formats.
+    def history
+      @wallet_id = params[:wallet_id]
+      @balance_cents = Balance.find(wallet_id: @wallet_id)
+      @entries = History.find(wallet_id: @wallet_id)
+      respond_to do |format|
+        format.html
+        format.json { render json: { wallet_id: @wallet_id, entries: @entries.map { |entry| entry_body(entry) } } }
+      end
+    end
+
     def deposit
       respond_with Deposit.call(wallet_id: params[:wallet_id], amount_cents: params[:amount_cents])
     end
@@ -49,6 +61,17 @@ module Wallet
 
     def balance_body(wallet_id)
       { wallet_id:, balance_cents: Balance.find(wallet_id:) }
+    end
+
+    # Times leave the app as ISO8601 in UTC, never in a display format
+    # (.build-kit/CLAUDE.md, "Standards") — formatting is the screen's job.
+    def entry_body(entry)
+      {
+        kind: entry.kind,
+        amount_cents: entry.amount_cents,
+        balance_cents: entry.balance_cents,
+        at: entry.at.utc.iso8601
+      }
     end
   end
 end

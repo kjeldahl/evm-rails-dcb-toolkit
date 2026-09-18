@@ -19,6 +19,17 @@ module Wallet
             }
           }
         },
+        "/wallets/{wallet_id}/history" => {
+          "get" => {
+            "operationId" => "getWalletHistory",
+            "summary" => "Ledger of one wallet's deposits and withdrawals, oldest first",
+            "parameters" => [ wallet_id_parameter ],
+            "responses" => {
+              "200" => json_response("Folded ledger (empty for an untouched wallet)",
+                                     ref: "WalletHistory")
+            }
+          }
+        },
         "/wallets/{wallet_id}/deposit" => command_path("deposit", "Deposit into a wallet"),
         "/wallets/{wallet_id}/withdraw" => command_path("withdraw", "Withdraw from a wallet")
       }
@@ -32,6 +43,25 @@ module Wallet
           "properties" => {
             "wallet_id" => { "type" => "string" },
             "balance_cents" => { "type" => "integer" }
+          }
+        },
+        "WalletHistory" => {
+          "type" => "object",
+          "required" => %w[wallet_id entries],
+          "properties" => {
+            "wallet_id" => { "type" => "string" },
+            "entries" => { "type" => "array", "items" => ref("WalletHistoryEntry") }
+          }
+        },
+        "WalletHistoryEntry" => {
+          "type" => "object",
+          "required" => %w[kind amount_cents balance_cents at],
+          "properties" => {
+            "kind" => { "type" => "string", "enum" => %w[Deposit Withdrawal] },
+            # Signed: a withdrawal is negative, so the running balance is a sum.
+            "amount_cents" => { "type" => "integer" },
+            "balance_cents" => { "type" => "integer" },
+            "at" => { "type" => "string", "format" => "date-time" }
           }
         },
         "AmountCents" => {
