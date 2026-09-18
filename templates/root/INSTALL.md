@@ -36,6 +36,11 @@ rm -rf ~/.eventmodelers/git-stacks/*evm-rails-dcb-toolkit*
 `template.rb` is fetched by URL on every run, so it is never stale — but the
 overlay the CLI copies is.
 
+Re-running the template on an existing app is safe and is how you pick up a
+newer kit: each thing it adds is checked for individually, so a line added to
+this kit after you installed still arrives. It never touches
+`.build-kit/AGENTS.local.md` — your project's own notes.
+
 `--skip-active-record` is the important one — the only persistence in this
 stack is the append-only events table, reached through `lib/event_store.rb`.
 It skips `config/database.yml` and ActiveRecord entirely; the event store's
@@ -190,10 +195,13 @@ end
 # The overlay is copied, not rendered — and this must catch the PostgreSQL
 # database names (my_app_development/_test/_production) too, not just the
 # bare "my_app".
-ruby -pi -e 'gsub("my_app", "your_app_name")' config/event_store.yml
+ruby -pi -e 'gsub("my_app", "your_app_name")' config/event_store.yml   # the module name, not the folder name
 mkdir -p .build-kit/examples/wallet
 cp -r app/slices/wallet .build-kit/examples/wallet/slice
 cp -r spec/slices/wallet .build-kit/examples/wallet/spec
+# This project's own notes. The kit overwrites .build-kit/AGENTS.md on every
+# install, so learnings must live in a file it never writes.
+[ -f .build-kit/AGENTS.local.md ] || printf '# Project notes\n\nWhat earlier iterations learned about **this** application. The kit never\nwrites this file. `.build-kit/AGENTS.md` is the kit'"'"'s own starter notes and\n**is** replaced on every install.\n' > .build-kit/AGENTS.local.md
 bin/rails event_store:prepare     # creates storage/ if missing, then the events tables
 ```
 

@@ -1,8 +1,11 @@
 # What we learned building
 
-Reusable patterns and traps. Add what you find here, without repeating what's
-already written. This file is read **before every slice**: it's the memory
-that stops mistakes repeating across iterations.
+Reusable patterns and traps, read **before every slice**: the memory that
+stops mistakes repeating across iterations.
+
+> **This file belongs to the kit and is overwritten on every install.** Put
+> what *this project* learns in **`.build-kit/AGENTS.local.md`** next to it,
+> which the kit never writes. Read both; write to the local one.
 
 It ships seeded with what this kit's own authors verified against the
 `dcb_event_store` gem's source, the eventmodelers export schema, and a real

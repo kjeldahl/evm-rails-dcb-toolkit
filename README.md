@@ -50,7 +50,8 @@ New here? Start with the guides:
 |---|---|
 | `.claude/skills/build-*` | four skills: state-change, state-view, automation, webhook |
 | `.build-kit/CLAUDE.md` | the blueprint — "how we build things here" |
-| `.build-kit/AGENTS.md` | seeded lessons, read before every slice |
+| `.build-kit/AGENTS.md` | seeded lessons, read before every slice (kit-owned, replaced on every install) |
+| `.build-kit/AGENTS.local.md` | this project's own accumulated notes — created once, never overwritten by the kit |
 | `.build-kit/lib/*.md` | the agent-loop prompts |
 | `lib/event_store.rb`, `lib/result.rb`, `config/event_store.yml`, `lib/tasks/` | the shared plumbing every slice uses |
 | `lib/open_api.rb` + `app/controllers/openapi_controller.rb` | OpenAPI 3.1 document assembled from slice-local `web/openapi.rb` registrations, served at `GET /openapi.json` |

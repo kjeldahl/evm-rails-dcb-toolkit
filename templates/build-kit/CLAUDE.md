@@ -422,8 +422,10 @@ distinguishing title the board does not have.
 
 ## Before you start
 
-Read `.build-kit/AGENTS.md` if it exists, to load what earlier iterations
-learned. And when you start a slice, invoke `update-slice-status` with
+Read `.build-kit/AGENTS.md` **and `.build-kit/AGENTS.local.md`** if they
+exist, to load what earlier iterations learned. The first is the kit's, and
+is replaced on every install; the second is this project's, and the kit
+never writes it — so anything you learn goes in the local one. And when you start a slice, invoke `update-slice-status` with
 `InProgress` before anything else.
 
 ## If something is ambiguous
