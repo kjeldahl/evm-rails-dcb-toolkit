@@ -100,7 +100,7 @@ Before committing, check if any edited files have learnings worth preserving in 
 
 - "When modifying X, also update Y to keep them in sync"
 - "This module uses pattern Z for all API calls"
-- "Integration spec run needs EVENT_STORE_ADAPTER=postgres and a running PostgreSQL"
+- "Integration spec run needs EVENT_STORE_ADAPTER=sqlite (or postgres, with a running server)"
 - "Field names must match the board exactly"
 
 **Do NOT add:**
@@ -183,7 +183,7 @@ template in `.build-kit/CLAUDE.md`, worked example at
 `docs/screens/EXAMPLE-wallet-balance.md` — and **stop**.
 
 **Quality gate:** `bundle exec rspec && bundle exec rubocop && bundle exec
-packwerk check` — no Postgres needed (specs default to the gem's in-memory
+packwerk check` — no database server needed (specs default to the gem's in-memory
 store; packwerk enforces the slices-never-reference-each-other rule). Never
 commit red. A new context directory needs its `package.yml` (copy
 `app/slices/wallet/package.yml`), and every web-facing slice registers its

@@ -4,7 +4,7 @@ The workflow this kit plugs into is Martin Dilger's / Nebulit's
 [Eventmodelers](https://eventmodelers.ai) platform: you design the system as
 an **event model** (events, commands, read models, screens, automations,
 sliced vertically), and an autonomous coding agent turns each slice into
-code — here, into a Rails 8 + PostgreSQL app event-sourced on
+code — here, into a Rails 8 app event-sourced on
 [`dcb_event_store`](https://github.com/Kjeldahl/ruby-dcb).
 
 ## 0 · Prerequisites
@@ -12,8 +12,9 @@ code — here, into a Rails 8 + PostgreSQL app event-sourced on
 - An [app.eventmodelers.ai](https://app.eventmodelers.ai) account with a
   board; API token, Organization ID and Board ID from
   `app.eventmodelers.ai/account`.
-- Ruby ≥ 3.3, Rails 8, PostgreSQL running locally, Node (for the `npx`
-  CLI), and Claude Code (the agent loop drives it).
+- Ruby ≥ 3.3, Rails 8, Node (for the `npx` CLI), and Claude Code (the agent
+  loop drives it). No database server: the event store defaults to SQLite
+  (PostgreSQL is one env var away).
 
 ## 1 · Scaffold
 

@@ -11,7 +11,10 @@ wrote).
 
 ## 0 · Prerequisites
 
-Ruby ≥ 3.3, PostgreSQL running locally, Node not required.
+Ruby ≥ 3.3, Node not required. **No database server**: the event store
+defaults to SQLite — one file under `storage/`, created for you in step 5.
+(PostgreSQL is one env var away — see *Using PostgreSQL instead* at the
+bottom.)
 
 ## 1 · `rails new` (if you haven't yet)
 
@@ -23,6 +26,13 @@ cd my_app
 
 `--skip-active-record` is the important one — the only persistence in this
 stack is the append-only events table, reached through `lib/event_store.rb`.
+It skips `config/database.yml` and ActiveRecord entirely; the event store's
+own SQLite file is configured in `config/event_store.yml`, not there.
+
+If you pass `--skip-git`, Rails writes **no `.gitignore`** — this kit ships
+one (it covers `config/master.key`, `storage/`, `*.sqlite3`, `node_modules/`).
+Before your first commit, check it landed and that `git status` does not show
+`config/master.key`.
 
 Then run the kit installer inside the app directory (skip if you already
 did — this INSTALL.md arriving means it ran):
@@ -39,8 +49,13 @@ The CLI copies files without merging, so it can't edit the `Gemfile`
 ```ruby
 # Event sourcing via Dynamic Consistency Boundary event store
 gem "dcb_event_store", github: "Kjeldahl/ruby-dcb"
-gem "pg", "~> 1.5"
+gem "sqlite3", "~> 2.0"
 gem "connection_pool", "~> 2.4"
+
+# Environment pin, not a kit requirement: json 3.x breaks Rails' JSON request
+# parsing (seen on Ruby 4.0.5), so the curl calls below fail on a well-formed
+# body. Drop the pin once your Ruby/Rails pair is known good with json 3.
+gem "json", "~> 2.10"
 
 group :development, :test do
   gem "rspec-rails", "~> 8.0"
@@ -82,24 +97,48 @@ initializer "app.collapse_slice_dirs", before: :setup_main_autoloader do
   Rails.autoloaders.main.collapse(slices_root.join("*/domain"))
   Rails.autoloaders.main.collapse(slices_root.join("*/web"))
 end
-config.paths["app/views"].concat(Dir[slices_root.join("*/views")])
+# Each slice's views/ is a view-lookup root, so app/slices/wallet/views/
+# wallets/show.html.erb is found as "wallets/show" (see step 4).
+config.paths["app/views"].concat(root.glob("app/slices/*/views").map(&:to_s))
 ```
 
-## 4 · Postgres + event store
+## 4 · `app/controllers/application_controller.rb`
 
-Credentials live in `config/event_store.yml` (env-overridable:
-`EVENT_STORE_HOST/PORT/USER/PASSWORD/DATABASE`). Create role + database +
-schema in one go:
+Two lines of policy every slice depends on. Paste inside
+`class ApplicationController < ActionController::Base`:
+
+```ruby
+# Slice controllers are namespaced (Wallet::WalletsController) but their
+# templates live at app/slices/<slice>/views/<resource>/ — without the
+# namespace segment. Rails' default lookup prefix is the full controller
+# path ("wallet/wallets"), which finds nothing and renders 204 No Content;
+# the last segment is the one that matches. Resource directory names must
+# therefore be unique across slices — they share one lookup path.
+def self.local_prefixes
+  [ controller_path.split("/").last ]
+end
+
+# The JSON API is stateless and token-less (see each slice's web/openapi.rb),
+# so a `curl -d '{...}'` call carries no CSRF token and would be rejected
+# with 422. HTML form posts keep full forgery protection.
+protect_from_forgery with: :exception, unless: -> { request.format.json? }
+```
+
+## 5 · Event store
+
+Connection settings live in `config/event_store.yml` (env-overridable:
+`EVENT_STORE_ADAPTER`, `EVENT_STORE_PATH`, and the PostgreSQL
+`EVENT_STORE_HOST/PORT/USER/PASSWORD/DATABASE`). Defaults to SQLite at
+`storage/<env>.sqlite3`. Create the file and the schema:
 
 ```bash
-createuser -s my_app 2>/dev/null || true   # or point EVENT_STORE_USER at an existing role
-bin/rails event_store:prepare               # creates the database if missing, then the events table
+bin/rails event_store:prepare   # creates storage/ if missing, then the events tables
 ```
 
 (`event_store:setup` = schema only; `event_store:reset` = drop + recreate,
 destroys all events.)
 
-## 5 · Routes
+## 6 · Routes
 
 Paste into `config/routes.rb` — the OpenAPI endpoint (permanent) and the
 worked example's routes (deleted with the example):
@@ -107,7 +146,11 @@ worked example's routes (deleted with the example):
 ```ruby
 get "openapi.json" => "openapi#show"
 
-resources :wallets, only: :show, param: :wallet_id do
+# module: :wallet is required — the controller is Wallet::WalletsController.
+# Without it Rails looks up a top-level WalletsController and raises
+# "uninitialized constant WalletsController". Every slice's route line needs
+# `module: :<slice>`; the path and helper names stay un-namespaced.
+resources :wallets, only: :show, param: :wallet_id, module: :wallet do
   member do
     post :deposit
     post :withdraw
@@ -124,6 +167,8 @@ bin/rails server
 #   curl -H 'content-type: application/json' -d '{"amount_cents":500}' localhost:3000/wallets/w1/deposit.json
 #   curl localhost:3000/wallets/w1.json
 #   curl localhost:3000/openapi.json
+# HTML screen:
+#   open http://localhost:3000/wallets/w1
 ```
 
 Once green, **delete this file, delete `app/slices/wallet/`,
@@ -131,3 +176,25 @@ Once green, **delete this file, delete `app/slices/wallet/`,
 keep a copy of the example reachable via `git show` on this commit — every
 `build-*` skill points at the worked example by name), and start marking
 slices `Planned` on the board.
+
+## Using PostgreSQL instead
+
+SQLite is the default because it needs no server. PostgreSQL is worth
+switching to when appends must proceed in parallel across disjoint
+consistency boundaries, when several hosts share the store, or when
+subscribers should wake without polling (SQLite subscribers poll).
+
+```ruby
+# Gemfile: replace sqlite3 with
+gem "pg", "~> 1.5"
+```
+
+```bash
+createuser -s my_app 2>/dev/null || true   # or point EVENT_STORE_USER at an existing role
+EVENT_STORE_ADAPTER=postgres bin/rails event_store:prepare  # creates the database, then the schema
+```
+
+Set `EVENT_STORE_ADAPTER=postgres` wherever the app runs (the `database:`,
+`host:`, `username:` and `password:` keys in `config/event_store.yml` are
+already there, unused by the SQLite adapter). Nothing else changes —
+slices, specs and the plumbing are backend-agnostic.

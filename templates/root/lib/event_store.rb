@@ -1,16 +1,21 @@
 # frozen_string_literal: true
 
+require "fileutils"
+
 require "dcb_event_store"
 require "connection_pool"
-require "pg"
 
 # Application-wide access to the DCB event store. All domain state lives in
 # the append-only events table; slices read it through projections and write
 # through commands that use append conditions for consistency.
 #
-# Two adapters (config/event_store.yml): "postgres" (default) and "memory"
-# (DcbEventStore::InMemoryStore — the test default; single-threaded,
+# Three adapters (config/event_store.yml): "sqlite" (default — one file, no
+# server, `path:`), "postgres" (`host/port/username/password/database:`) and
+# "memory" (DcbEventStore::InMemoryStore — the test default; single-threaded,
 # per-process, so parallel test workers are fully isolated).
+#
+# The driver gem is required lazily, so an app only bundles the one its
+# adapter uses (sqlite3 or pg).
 module EventStore
   class << self
     def append(events, condition = nil)
@@ -43,17 +48,18 @@ module EventStore
     def with_store(&block)
       return block.call(memory_store) if memory?
 
-      pool.with { |conn| block.call(DcbEventStore::Store.new(conn)) }
+      pool.with { |conn| block.call(store_for(conn)) }
     end
 
     def create_schema!
       return if memory?
 
-      pool.with { |conn| DcbEventStore::Schema.create!(conn) }
+      pool.with { |conn| schema.create!(conn) }
     end
 
-    # Idempotent bootstrap: create the configured database if it is missing,
-    # then the event store schema. Lets a fresh checkout start with one task.
+    # Idempotent bootstrap: create the configured database (the SQLite file's
+    # directory, or the PostgreSQL database) if it is missing, then the event
+    # store schema. Lets a fresh checkout start with one task.
     def prepare!
       return if memory?
 
@@ -64,11 +70,11 @@ module EventStore
     def drop_schema!
       return if memory?
 
-      pool.with { |conn| DcbEventStore::Schema.drop!(conn) }
+      pool.with { |conn| schema.drop!(conn) }
     end
 
     # Test-only: the events table is append-only, so wiping it means swapping
-    # the in-memory store instance, or drop + recreate for PostgreSQL.
+    # the in-memory store instance, or drop + recreate for the SQL backends.
     def reset!
       if memory?
         @memory_store = DcbEventStore::InMemoryStore.new
@@ -78,12 +84,20 @@ module EventStore
       end
     end
 
+    def adapter
+      connection_config[:adapter]
+    end
+
     def memory?
-      connection_config[:adapter] == "memory"
+      adapter == "memory"
+    end
+
+    def sqlite?
+      adapter == "sqlite"
     end
 
     def pool
-      @pool ||= ConnectionPool.new(size: pool_size, timeout: 5) { PG.connect(**pg_config) }
+      @pool ||= ConnectionPool.new(size: pool_size, timeout: 5) { connect }
     end
 
     private
@@ -96,7 +110,40 @@ module EventStore
       @append_hooks ||= []
     end
 
+    def store_for(conn)
+      sqlite? ? DcbEventStore::SqliteStore.new(conn) : DcbEventStore::PostgresStore.new(conn)
+    end
+
+    def schema
+      sqlite? ? DcbEventStore::SqliteStore::Schema : DcbEventStore::PostgresStore::Schema
+    end
+
+    def connect
+      sqlite? ? sqlite_connection : postgres_connection
+    end
+
+    # Every connection opened against the file needs the store's pragmas (WAL,
+    # foreign keys, the GVL-releasing busy handler), not just the one that
+    # installed the schema.
+    def sqlite_connection
+      require "sqlite3"
+      SQLite3::Database.new(database_path).tap do |db|
+        DcbEventStore::SqliteStore::Schema.configure!(db)
+      end
+    end
+
+    def postgres_connection
+      require "pg"
+      PG.connect(**pg_config)
+    end
+
     def create_database!
+      return FileUtils.mkdir_p(File.dirname(database_path)) if sqlite?
+
+      create_postgres_database!
+    end
+
+    def create_postgres_database!
       with_maintenance_connection do |conn|
         next if database_exists?(conn)
 
@@ -128,6 +175,12 @@ module EventStore
 
     def connection_config
       Rails.application.config_for(:event_store)
+    end
+
+    # SQLite: `path:` from config/event_store.yml, relative to Rails.root
+    # (an absolute path is used as given).
+    def database_path
+      Rails.root.join(connection_config[:path]).to_s
     end
 
     def pg_config

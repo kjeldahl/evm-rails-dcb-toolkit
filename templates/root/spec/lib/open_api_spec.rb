@@ -2,6 +2,10 @@
 
 require "rails_helper"
 
+# Permanent infrastructure spec: it must keep passing after the wallet worked
+# example is deleted, so nothing here names a slice. The wallet slice's own
+# contribution is asserted in spec/slices/wallet/openapi_spec.rb, which goes
+# away with the example.
 RSpec.describe OpenApi do
   let(:document) { described_class.document }
 
@@ -10,16 +14,18 @@ RSpec.describe OpenApi do
     expect(document[:info]).to include(:title, :version)
   end
 
-  it "merges every slice's paths and schemas" do
-    # The wallet worked example contributes; a new slice's web/openapi.rb is
-    # picked up by file glob with no registration step.
-    expect(document[:paths].keys).to include(
-      "/wallets/{wallet_id}",
-      "/wallets/{wallet_id}/deposit",
-      "/wallets/{wallet_id}/withdraw"
-    )
-    expect(document[:components][:schemas].keys)
-      .to include("WalletBalance", "AmountCents", "CommandRejected")
+  it "merges every slice's web/openapi.rb contribution" do
+    # Discovery is by file glob + constantize — a new slice needs no
+    # registration step, so this holds for whatever slices exist.
+    described_class.contributors.each do |contributor|
+      %i[paths schemas].each do |section|
+        next unless contributor.respond_to?(section)
+
+        keys = contributor.public_send(section).keys
+        target = section == :paths ? document[:paths] : document[:components][:schemas]
+        expect(target.keys).to include(*keys) if keys.any?
+      end
+    end
   end
 
   it "every $ref points at a schema the document actually carries" do

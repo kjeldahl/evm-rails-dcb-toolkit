@@ -1,4 +1,4 @@
-# Blueprint: Rails 8 + dcb_event_store (event sourcing, Postgres, DCB)
+# Blueprint: Rails 8 + dcb_event_store (event sourcing, SQLite/Postgres, DCB)
 
 This is "how we build things here". Not a style guide: it's the contract that
 lets an agent implement a slice without anyone having to review where each
@@ -30,6 +30,8 @@ never the plumbing around them.
     domain/     # pure Ruby: commands, the Events module, projections
     web/        # controllers only
     views/<resource>/   # ERB templates for this slice's controllers
+                        # (no <context>/ segment — ApplicationController
+                        #  strips the namespace from the lookup prefix)
   spec/slices/<context>/   # this context's specs
   ```
 
@@ -61,8 +63,10 @@ never the plumbing around them.
 - **Language:** Ruby ≥ 3.3, Rails 8 (`load_defaults 8.x`), **no
   ActiveRecord** — the only persistence is the append-only `events` table,
   reached exclusively through `EventStore` (`lib/event_store.rb`).
-  **Store:** PostgreSQL via `dcb_event_store`; specs default to the gem's
-  in-memory adapter (`config/event_store.yml`).
+  **Store:** SQLite by default via `dcb_event_store` (PostgreSQL with
+  `EVENT_STORE_ADAPTER=postgres`); specs default to the gem's in-memory
+  adapter (`config/event_store.yml`). Slice code never knows which — it
+  only ever talks to `EventStore`.
 - **Domain names follow the board.** Event type strings are the board's
   event titles **verbatim, PascalCase past tense, no spaces**
   (`"CustomerRegistered"`); command classes are the board's command titles
@@ -240,7 +244,9 @@ This stack renders **plain server-side ERB**. When a slice has `screens`:
 - If the screen is a straightforward render of the slice's own read model
   and/or a form for its own command (the common case), build it: a thin
   controller in `web/`, an ERB template in `views/<resource>/`, a `resources`
-  line in `config/routes.rb`. Semantic HTML, no JS framework, no invented
+  line in `config/routes.rb` **carrying `module: :<context>`** (the
+  controller is namespaced; without it Rails raises `uninitialized
+  constant <Resource>Controller`). Semantic HTML, no JS framework, no invented
   fields — the screen shows exactly the read model's fields and posts
   exactly the command's fields.
 - If the screen composes data this slice doesn't own, or the `description`
@@ -262,7 +268,7 @@ app/slices/<context>/web/openapi.rb          # this context's OpenAPI contributi
 app/slices/<context>/views/<resource>/*.erb
 app/slices/<context>/package.yml             # once per context (copy wallet's)
 spec/slices/<context>/<file>_spec.rb         # one example per specifications[] entry
-config/routes.rb                             # one resources/route line
+config/routes.rb                             # one resources/route line, module: :<context>
 ```
 
 **Once you have a context built, read it before the next slice in it.**

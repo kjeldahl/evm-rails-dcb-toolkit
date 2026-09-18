@@ -154,7 +154,8 @@ fold-everything-and-filter-in-Ruby workaround.
 Read slices almost always have a screen. Per `.build-kit/CLAUDE.md`:
 
 - A plain render of this model's fields → build it: thin controller in
-  `web/` calling `.find(...)`, ERB in `views/<resource>/`, a route line,
+  `web/` calling `.find(...)`, ERB in `views/<resource>/`, a route line
+  (with `module: :<context>` — the controller is namespaced),
   **and a JSON response** (`respond_to`, rendering the model's fields —
   worked example: `wallets_controller.rb#show`). **Render the
   empty/initial state meaningfully** — the screen sees it the first moment
