@@ -38,6 +38,15 @@ def kit_say(message)
   say_status :kit, message, :green
 end
 
+# The app's real name. Under `rails new` the generator's own `app_name` is
+# right, but under `bin/rails app:template` it is only the **basename of the
+# directory** — often dated or otherwise decorated (a 2026_09_18_… checkout
+# becomes a 2026_09_18_…_development database). The constant the app booted
+# under is the truth whenever there is a booted app.
+def kit_app_name
+  BOOTED ? Rails.application.class.module_parent_name.underscore : app_name
+end
+
 # --- the overlay ------------------------------------------------------------
 
 def kit_fetch_overlay!
@@ -83,6 +92,14 @@ end
 
 # --- the files rails new owns ----------------------------------------------
 
+# Each snippet below is applied on its **own** marker. One marker for a
+# whole block looks tidier and is wrong on an upgrade: a line added to that
+# block in a later version of this kit would never reach an app installed
+# before it — which is exactly how `config.time_zone` and the history route
+# went missing for one project. Markers anchor at the start of a line, so
+# `rails new`'s own commented-out `# config.time_zone = ...` is not mistaken
+# for the real setting.
+
 SLICES_WIRING = <<~'WIRING'.freeze
   # Vertical slices: each directory under app/slices is a self-contained
   # bounded context namespaced by its directory name (Wallet, ...). The
@@ -96,18 +113,29 @@ SLICES_WIRING = <<~'WIRING'.freeze
     Rails.autoloaders.main.collapse(slices_root.join("*/domain"))
     Rails.autoloaders.main.collapse(slices_root.join("*/web"))
   end
+WIRING
+
+VIEW_PATHS = <<~'VIEWS'.freeze
   # Each slice's views/ is a view-lookup root, so
   # app/slices/wallet/views/wallets/show.html.erb is found as "wallets/show".
   config.paths["app/views"].concat(root.glob("app/slices/*/views").map(&:to_s))
+VIEWS
 
+TIME_ZONE = <<~'ZONE'.freeze
   # Set once, here, because config/ is off-limits to the slice agents: a
   # business rule that needs a local calendar notion (a business day, a
   # cutoff hour) is theirs to raise, not to guess. Domain code uses
   # Time.current and stores iso8601 in UTC.
   config.time_zone = ENV.fetch("APP_TIME_ZONE", "UTC")
-WIRING
+ZONE
 
-CONTROLLER_POLICY = <<~'POLICY'.freeze
+APP_CONFIG_ADDITIONS = [
+  [ /^\s*initializer "app\.collapse_slice_dirs"/, SLICES_WIRING ],
+  [ /^\s*config\.paths\["app\/views"\]/, VIEW_PATHS ],
+  [ /^\s*config\.time_zone\s*=/, TIME_ZONE ]
+].freeze
+
+LOCAL_PREFIXES = <<~'PREFIXES'.freeze
   # Slice controllers are namespaced (Wallet::WalletsController) but their
   # templates live at app/slices/<slice>/views/<resource>/ - without the
   # namespace segment. Rails' default lookup prefix is the full controller
@@ -117,19 +145,26 @@ CONTROLLER_POLICY = <<~'POLICY'.freeze
   def self.local_prefixes
     [ controller_path.split("/").last ]
   end
+PREFIXES
 
+FORGERY_POLICY = <<~'FORGERY'.freeze
   # The JSON API is stateless and token-less (see each slice's web/openapi.rb),
   # so a `curl -d '{...}'` call carries no CSRF token and would be rejected
   # with 422. HTML form posts keep full forgery protection.
   protect_from_forgery with: :exception, unless: -> { request.format.json? }
-POLICY
+FORGERY
+
+CONTROLLER_ADDITIONS = [
+  [ /^\s*def self\.local_prefixes/, LOCAL_PREFIXES ],
+  [ /^\s*protect_from_forgery/, FORGERY_POLICY ]
+].freeze
+
+OPENAPI_ROUTE = %(get "openapi.json" => "openapi#show"\n).freeze
 
 # module: :wallet is required - the controller is Wallet::WalletsController.
 # Without it Rails looks up a top-level WalletsController and raises
 # "uninitialized constant WalletsController".
-KIT_ROUTES = <<~'ROUTES'.freeze
-  get "openapi.json" => "openapi#show"
-
+WALLET_ROUTES = <<~'ROUTES'.freeze
   resources :wallets, only: :show, param: :wallet_id, module: :wallet do
     member do
       get :history
@@ -139,17 +174,35 @@ KIT_ROUTES = <<~'ROUTES'.freeze
   end
 ROUTES
 
+def kit_add_to_class!(file, klass, additions)
+  additions.each do |marker, snippet|
+    next if File.read(file).match?(marker)
+
+    # Trailing newline so successive additions don't run together: each one
+    # is injected at the top of the class body, so they stack.
+    inject_into_class file, klass, snippet.indent(klass == "Application" ? 4 : 2) + "\n"
+  end
+end
+
 def kit_patch_app!
-  unless File.read("config/application.rb").include?("app.collapse_slice_dirs")
-    inject_into_class "config/application.rb", "Application", SLICES_WIRING.indent(4)
-  end
+  kit_add_to_class! "config/application.rb", "Application", APP_CONFIG_ADDITIONS
+  kit_add_to_class! "app/controllers/application_controller.rb", "ApplicationController", CONTROLLER_ADDITIONS
+  kit_routes!
+end
 
-  unless File.read("app/controllers/application_controller.rb").include?("local_prefixes")
-    inject_into_class "app/controllers/application_controller.rb",
-                      "ApplicationController", CONTROLLER_POLICY.indent(2)
-  end
+def kit_routes!
+  route OPENAPI_ROUTE unless File.read("config/routes.rb").include?("openapi#show")
 
-  route KIT_ROUTES unless File.read("config/routes.rb").include?("openapi#show")
+  if File.read("config/routes.rb").include?("resources :wallets")
+    # Upgrade: the block is already there but may predate a line added to it
+    # in a later version of the kit.
+    return if File.read("config/routes.rb").match?(/^\s*get :history/)
+
+    inject_into_file "config/routes.rb", "      get :history\n",
+                     after: /resources :wallets[^\n]*\n\s*member do\n/, verbose: false
+  else
+    route WALLET_ROUTES
+  end
 end
 
 # config/event_store.yml ships with "my_app" in it, because the overlay is
@@ -158,7 +211,7 @@ end
 # underscore would leave every one of them behind — the switch to PostgreSQL
 # would then silently target someone else's database name.
 def kit_name_the_app!
-  gsub_file "config/event_store.yml", "my_app", app_name, verbose: false
+  gsub_file "config/event_store.yml", "my_app", kit_app_name, verbose: false
 end
 
 # --- post-bundle ------------------------------------------------------------
@@ -198,9 +251,37 @@ def kit_archive_example!
   kit_say "archived the worked example to .build-kit/examples/wallet/"
 end
 
+AGENTS_LOCAL = <<~'LOCAL'.freeze
+  # Project notes
+
+  What earlier iterations learned about **this** application: its board's
+  quirks, decisions taken with `request-feedback`, traps specific to its
+  slices.
+
+  The kit never writes this file, so re-installing or upgrading the kit
+  cannot erase it. `.build-kit/AGENTS.md` next to it is the kit's own
+  starter notes and **is** replaced on every install — never put a project
+  learning there.
+
+  Read both before a slice; write new ones here.
+LOCAL
+
+# The kit owns .build-kit/AGENTS.md and the CLI overwrites it on every
+# install, so anything an agent learns needs a file the kit never writes.
+def kit_agents_local!
+  return unless Dir.exist?(".build-kit")
+
+  path = ".build-kit/AGENTS.local.md"
+  return kit_say("#{path} kept as it is") if File.exist?(path)
+
+  create_file path, AGENTS_LOCAL, verbose: false
+  kit_say "created #{path} for this project's own notes"
+end
+
 def kit_finish!
   kit_rspec!
   kit_archive_example!
+  kit_agents_local!
   rails_command "event_store:prepare"
   kit_say "done - run `bundle exec rspec && bundle exec rubocop && bundle exec packwerk check`, then `bin/rails server`"
 end

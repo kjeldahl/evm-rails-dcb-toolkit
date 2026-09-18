@@ -37,7 +37,7 @@ You work within **exactly ONE context at a time** — the one named in `.build-k
 15. If checks pass, commit ALL changes with message: `feat: [Slice Name]` and merge back to main as FF merge (update first).
 16. Update the PRD to set `status: Done` for the completed story in index.json **and** update the slice status on the eventmodelers board using the `update-slice-status` skill (or MCP if available).
 17. Append your progress to `progress.txt` after each step in the iteration.
-18. Append your new learnings to `.build-kit/AGENTS.md` in a compressed form, reusable for future iterations. Only add learnings if they are not already there.
+18. Append your new learnings to `.build-kit/AGENTS.local.md` in a compressed form, reusable for future iterations. Only add learnings if they are not already there. (Never to `.build-kit/AGENTS.md` — the kit owns that file and overwrites it on every install, which would erase them.)
 19. Finish the iteration.
 
 ## Escalating Ambiguity
@@ -84,19 +84,19 @@ important learnings:
 
 Only add patterns that are **general and reusable**, not story-specific details.
 
-## Update AGENTS.md Files
+## Update AGENTS.local.md
 
-Before committing, check if any edited files have learnings worth preserving in nearby AGENTS.md files:
+Before committing, check whether anything you learned is worth preserving in `.build-kit/AGENTS.local.md` — the project's own notes, which the kit never overwrites:
 
 1. **Identify directories with edited files** — look at which directories you modified.
-2. **Add valuable learnings that apply to all tasks** to the AGENTS.md — if you discovered something future developers/agents should know:
+2. **Add valuable learnings that apply to all tasks** to `AGENTS.local.md` — if you discovered something future developers/agents should know:
     - API patterns or conventions specific to that module
     - Gotchas or non-obvious requirements
     - Dependencies between files
     - Testing approaches for that area
     - Configuration or environment requirements
 
-**Examples of good AGENTS.md additions:**
+**Examples of good `AGENTS.local.md` additions:**
 
 - "When modifying X, also update Y to keep them in sync"
 - "This module uses pattern Z for all API calls"
@@ -111,7 +111,7 @@ Before committing, check if any edited files have learnings worth preserving in 
 - Information already in progress.txt
 - Task-specific learnings
 
-Only update AGENTS.md if you have **genuinely reusable knowledge** that would help future work.
+Only update `AGENTS.local.md` if you have **genuinely reusable knowledge** that would help future work.
 
 ## Quality Requirements
 
@@ -157,7 +157,7 @@ If ALL slices in the current context are Done, reply with:
 
 ## When an iteration completes
 
-Use all the key learnings from the progress.txt and update the `.build-kit/AGENTS.md` file with those learnings.
+Use all the key learnings from the progress.txt and update the `.build-kit/AGENTS.local.md` file with those learnings.
 
 ---
 
