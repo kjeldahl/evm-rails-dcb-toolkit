@@ -82,7 +82,7 @@ is skipped — all four failures are silent or misleading.
 
 ```ruby
 # Event sourcing via Dynamic Consistency Boundary event store
-gem "dcb_event_store", github: "Kjeldahl/ruby-dcb"
+gem "dcb_event_store", github: "Kjeldahl/ruby-dcb", tag: "0.2.0"
 gem "sqlite3", "~> 2.0"
 gem "connection_pool", "~> 2.4"
 
@@ -100,6 +100,9 @@ group :development, :test do
   gem "benchmark", require: false
 end
 ```
+
+The gem is pinned to a released tag rather than the branch, so two installs
+a week apart get the same gem; bump the tag to take a newer release.
 
 **`rails new` already put `rubocop-rails-omakase` in the Gemfile** — adding
 it again only earns a Bundler warning.
