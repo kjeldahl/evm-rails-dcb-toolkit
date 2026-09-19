@@ -38,8 +38,16 @@ overlay the CLI copies is.
 
 Re-running the template on an existing app is safe and is how you pick up a
 newer kit: each thing it adds is checked for individually, so a line added to
-this kit after you installed still arrives. It never touches
+this kit after you installed still arrives — including the `dcb_event_store`
+tag, if your Gemfile predates the pin. It never touches
 `.build-kit/AGENTS.local.md` — your project's own notes.
+
+Moving to a newer gem release is a deliberate step, because the tag is
+pinned in both the Gemfile and the lockfile: change the tag, then
+
+```bash
+bundle update dcb_event_store
+```
 
 `--skip-active-record` is the important one — the only persistence in this
 stack is the append-only events table, reached through `lib/event_store.rb`.
