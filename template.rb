@@ -189,6 +189,20 @@ def kit_add_to_class!(file, klass, additions)
   end
 end
 
+# An app installed before the tag pin carries a bare `github:` line, and
+# kit_gem? leaves it that way for good — so it keeps resolving to whatever
+# the branch happens to hold, which is the drift the pin exists to stop.
+# Only the exact line this kit writes is rewritten: a `path:` source someone
+# develops the gem against, or a ref they chose themselves, is left alone,
+# and a line already carrying `tag:` does not match.
+def kit_pin_the_gem!
+  bare_line = /^(\s*gem "dcb_event_store", github: "Kjeldahl\/ruby-dcb")\s*$/
+  return unless File.read("Gemfile").match?(bare_line)
+
+  gsub_file "Gemfile", bare_line, "\\1, tag: #{DCB_VERSION.inspect}", verbose: false
+  kit_say "pinned dcb_event_store to #{DCB_VERSION} in the Gemfile"
+end
+
 def kit_patch_app!
   kit_add_to_class! "config/application.rb", "Application", APP_CONFIG_ADDITIONS
   kit_add_to_class! "app/controllers/application_controller.rb", "ApplicationController", CONTROLLER_ADDITIONS
@@ -235,7 +249,14 @@ RAILS_HELPER_FIXUPS = [
 
 def kit_rspec!
   rails_command "generate rspec:install" unless File.exist?("spec/rails_helper.rb")
-  return unless File.exist?("spec/rails_helper.rb")
+  unless File.exist?("spec/rails_helper.rb")
+    # rails_command shells out and Thor does not abort the template when the
+    # subprocess fails — the failure mode that once left an install with no
+    # rails_helper and a suite that could not load. Say so rather than
+    # reporting success.
+    say_status :kit, "rspec:install did not run - `bundle install`, then `bin/rails generate rspec:install`", :red
+    return
+  end
 
   RAILS_HELPER_FIXUPS.each do |from, to|
     gsub_file "spec/rails_helper.rb", from, to, verbose: false
@@ -295,6 +316,7 @@ end
 
 kit_fetch_overlay!
 kit_gems!
+kit_pin_the_gem!
 kit_patch_app!
 kit_name_the_app!
 
