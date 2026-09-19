@@ -28,6 +28,9 @@ require "tmpdir"
 
 KIT_REPO = "https://github.com/kjeldahl/evm-rails-dcb-toolkit".freeze
 
+# The dcb_event_store release this kit installs and was tested against.
+DCB_VERSION = "0.2.0".freeze
+
 # `rails new -m` runs inside the generator, before `bundle install`, so the
 # post-bundle work has to be deferred with after_bundle there. Under
 # `bin/rails app:template` the app is already booted and bundled and
@@ -70,7 +73,9 @@ end
 # `rails new` already writes rubocop-rails-omakase into the Gemfile -
 # declaring it a second time only earns a Bundler warning.
 def kit_gems!
-  gem "dcb_event_store", github: "Kjeldahl/ruby-dcb" unless kit_gem?("dcb_event_store")
+  # Pinned to a released tag, not the moving branch: two installs a week
+  # apart otherwise get different gems. Bump the tag to take a new release.
+  gem "dcb_event_store", github: "Kjeldahl/ruby-dcb", tag: DCB_VERSION unless kit_gem?("dcb_event_store")
   gem "sqlite3", "~> 2.0" unless kit_gem?("sqlite3")
   gem "connection_pool", "~> 2.4" unless kit_gem?("connection_pool")
   # Environment pin: json 3.x breaks Rails' JSON request parsing (seen on
@@ -298,8 +303,19 @@ if BOOTED
   # this template just added to the Gemfile are not installed yet — anything
   # that shells out to bin/rails below would load a Gemfile it cannot
   # satisfy, so bundle first.
-  run "bundle install"
-  kit_finish!
+  #
+  # And it has to bundle in a *clean* environment. This template runs inside
+  # the app's already-booted bundler process, whose BUNDLE_* variables every
+  # subprocess inherits; under that environment bundler refuses to resolve
+  # the Gemfile at all, because dcb_event_store is a git source it has not
+  # checked out yet — `bundle install` and the two bin/rails calls in
+  # kit_finish! all die with Bundler::GitError. Nothing raises (Thor reports
+  # the failure and carries on), so without this the install finishes
+  # "successfully" having written no spec/rails_helper.rb and no event store.
+  Bundler.with_unbundled_env do
+    run "bundle install"
+    kit_finish!
+  end
 else
   after_bundle { kit_finish! }
 end
