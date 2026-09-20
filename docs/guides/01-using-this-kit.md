@@ -63,7 +63,14 @@ Two ways to run the loop:
 
 ```bash
 npx @eventmodelers/cli run        # realtime agent: listens for board changes
+npx @eventmodelers/cli run --name ci-builder   # several agents on one board: name each
 ```
+
+Running more than one agent against the same board? Give each a name
+(`run --name`, or `init --name` / `EVENTMODELERS_AGENT_NAME` to persist it
+as `agentName` in `.eventmodelers/config.json`). The name goes out with
+every heartbeat, so the board shows *which* agent is live and who touched
+a slice, instead of one anonymous agent for all of them.
 
 Mark a slice **`Planned`** on the board. The agent claims it (sets
 `InProgress`), loads its `slice.json` into `.build-kit/.slices/`, routes it
