@@ -149,7 +149,7 @@ If ALL slices in the current context are Done, reply with:
 
 ## Important
 
-- If `.build-kit/.eventmodelers/config.json` is absent, skip all platform communication (MCP calls, `update-slice-status`, board sync) and continue working locally.
+- If `.eventmodelers/config.json` (project root — where `npx @eventmodelers/cli init` writes it, the same file `/connect` reads) is absent, skip all platform communication (MCP calls, `update-slice-status`, board sync) and continue working locally. It is NOT under `.build-kit/`.
 - Work on ONE slice per iteration
 - Commit frequently
 - Update progress.txt frequently

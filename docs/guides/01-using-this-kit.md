@@ -63,7 +63,14 @@ Two ways to run the loop:
 
 ```bash
 npx @eventmodelers/cli run        # realtime agent: listens for board changes
+npx @eventmodelers/cli run --name ci-builder   # several agents on one board: name each
 ```
+
+Running more than one agent against the same board? Give each a name
+(`run --name`, or `init --name` / `EVENTMODELERS_AGENT_NAME` to persist it
+as `agentName` in `.eventmodelers/config.json`). The name goes out with
+every heartbeat, so the board shows *which* agent is live and who touched
+a slice, instead of one anonymous agent for all of them.
 
 Mark a slice **`Planned`** on the board. The agent claims it (sets
 `InProgress`), loads its `slice.json` into `.build-kit/.slices/`, routes it
@@ -91,6 +98,13 @@ matching `/build-*` skill.
 - The commit-per-slice history mirrors the board — review PR-style.
 - `progress.txt` is the agent's running log; `.build-kit/AGENTS.md`
   accumulates reusable learnings (worth reading and pruning occasionally).
+- A slice the loop picked up repeatedly (`RALPH_MAX_PLANNED_ATTEMPTS`,
+  default 2) without ever leaving `Planned` is **auto-blocked by the loop
+  runner** itself (the CLI's `lib/ralph.js`, not this kit). It flips the
+  slice to `Blocked` on the board but does not post a comment — the reason
+  is only in `progress.txt` (`Slice auto-blocked`). A `Blocked` slice with
+  no question on it is that case: read `progress.txt`, fix the cause, set
+  it `Planned` again.
 - Screens the agent judged non-trivial arrive as **screen briefs** under
   `docs/screens/` instead of invented UI — that's by design; build the view
   from the brief, or simplify the screen on the board.
