@@ -1,0 +1,41 @@
+--- a/shared/build-kit/lib/ralph.js	2026-09-20 11:52:09.115173504 +0000
++++ b/shared/build-kit/lib/ralph.js	2026-09-20 11:52:09.128510404 +0000
+@@ -495,10 +495,11 @@
+   // doesn't just pull "Planned" back down over our local fix. Never fatal —
+   // this loop must keep going locally even if the board call fails.
+   if (credentialed) {
++    const headers = { 'Content-Type': 'application/json', 'x-token': cfg.token, 'x-board-id': cfg.boardId, 'x-user-id': 'ralph-loop', ...agentHeaders(cfg) };
+     try {
+       await fetchJSON(`${cfg.baseUrl}/api/org/${cfg.organizationId}/boards/${cfg.boardId}/nodes/events`, {
+         method: 'POST',
+-        headers: { 'Content-Type': 'application/json', 'x-token': cfg.token, 'x-board-id': cfg.boardId, 'x-user-id': 'ralph-loop', ...agentHeaders(cfg) },
++        headers,
+         body: JSON.stringify([{
+           id: randomUUID(),
+           eventType: 'node:changed',
+@@ -512,6 +513,25 @@
+     } catch (err) {
+       console.error(`[ralph] Failed to sync Blocked status to the board:`, err.message);
+     }
++
++    // The board is where people look, so the *why* has to land there too — a
++    // bare "Blocked" with no comment is indistinguishable from an agent that
++    // asked a question and lost it. Same endpoint request-feedback uses; the
++    // COMMENT type is the only one the API has. Still never fatal.
++    try {
++      await fetchJSON(`${cfg.baseUrl}/api/org/${cfg.organizationId}/boards/${cfg.boardId}/nodes/${planned.id}/comments`, {
++        method: 'POST',
++        headers,
++        body: JSON.stringify({
++          type: 'COMMENT',
++          author: 'ralph-loop',
++          text: `Auto-blocked by the ralph loop (not a question — nothing to answer): ${reason} ` +
++            `Details in progress.txt. Fix the cause, then set the slice back to Planned.`,
++        }),
++      });
++    } catch (err) {
++      console.error(`[ralph] Failed to post auto-block comment to the board:`, err.message);
++    }
+   }
+ 
+   console.error(`[ralph] ${reason} Marked "${planned.title}" (id=${planned.id}) as Blocked — moving on.`);
