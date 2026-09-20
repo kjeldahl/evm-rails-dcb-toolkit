@@ -8,7 +8,7 @@ upstream instead.
 
 | patch | against | what |
 |---|---|---|
-| `ralph-auto-block-comment.patch` | `@eventmodelers/cli` 1.0.75, `shared/build-kit/lib/ralph.js` | `blockStuckSlice` flips a stuck slice to `Blocked` on the board but writes the reason only to `progress.txt`. The patch also posts it as a comment on the slice (same `/nodes/:id/comments` endpoint and `x-token` headers `request-feedback` and `handle-comment` use), so the board says why. |
+| `ralph-auto-block-comment.patch` | `@eventmodelers/cli` 1.0.75, `shared/build-kit/lib/ralph.js` | `blockStuckSlice` flips a stuck slice to `Blocked` on the board but writes the reason only to `progress.txt`. The patch also posts it as a comment on the slice (same `/nodes/:id/comments` endpoint and `x-token` headers `request-feedback` and `handle-comment` use), &|
 
 Apply in a CLI checkout: `git apply docs/upstream/<name>.patch`.
 

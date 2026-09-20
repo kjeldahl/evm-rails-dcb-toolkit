@@ -1,5 +1,5 @@
 --- a/shared/build-kit/lib/ralph.js	2026-09-20 11:52:09.115173504 +0000
-+++ b/shared/build-kit/lib/ralph.js	2026-09-20 11:52:09.128510404 +0000
++++ b/shared/build-kit/lib/ralph.js	2026-09-20 12:51:07.459197694 +0000
 @@ -495,10 +495,11 @@
    // doesn't just pull "Planned" back down over our local fix. Never fatal —
    // this loop must keep going locally even if the board call fails.
@@ -13,7 +13,7 @@
          body: JSON.stringify([{
            id: randomUUID(),
            eventType: 'node:changed',
-@@ -512,6 +513,25 @@
+@@ -512,6 +513,28 @@
      } catch (err) {
        console.error(`[ralph] Failed to sync Blocked status to the board:`, err.message);
      }
@@ -22,13 +22,16 @@
 +    // bare "Blocked" with no comment is indistinguishable from an agent that
 +    // asked a question and lost it. Same endpoint request-feedback uses; the
 +    // COMMENT type is the only one the API has. Still never fatal.
++    // Author is the same agent id the heartbeat and x-agent-id carry, so the
++    // board attributes the comment to this agent, not an anonymous "ralph-loop".
++    const author = agentHeaders(cfg)['x-agent-id'] || 'ralph-loop';
 +    try {
 +      await fetchJSON(`${cfg.baseUrl}/api/org/${cfg.organizationId}/boards/${cfg.boardId}/nodes/${planned.id}/comments`, {
 +        method: 'POST',
 +        headers,
 +        body: JSON.stringify({
 +          type: 'COMMENT',
-+          author: 'ralph-loop',
++          author,
 +          text: `Auto-blocked by the ralph loop (not a question — nothing to answer): ${reason} ` +
 +            `Details in progress.txt. Fix the cause, then set the slice back to Planned.`,
 +        }),
