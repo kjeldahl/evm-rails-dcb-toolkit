@@ -36,6 +36,17 @@ rm -rf ~/.eventmodelers/git-stacks/*evm-rails-dcb-toolkit*
 `template.rb` is fetched by URL on every run, so it is never stale — but the
 overlay the CLI copies is.
 
+**Want the commit guard?** Add `--hooks` to the `init` line. It installs
+`.githooks/` (a `pre-commit` and a `commit-msg` hook running
+`.build-kit/lib/check-commit-scope.cjs`) and sets `git config
+core.hooksPath`, so every slice commit is checked against the rules in
+`.build-kit/CLAUDE.md` — see its "Commit guard" section. It is opt-in and
+needs Node (the agent loop needs it anyway). Only `init --hooks` installs it
+for a `--git` kit — the CLI's `init-hooks` and `re-init` don't know
+community stacks — so to turn it on later re-run the `init` line with
+`--hooks` (safe, idempotent), or copy `.githooks/` from the kit by hand and
+run `git config core.hooksPath "$PWD/.githooks"`.
+
 Re-running the template on an existing app is safe and is how you pick up a
 newer kit: each thing it adds is checked for individually, so a line added to
 this kit after you installed still arrives — including the `dcb_event_store`

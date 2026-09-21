@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # The commit guard's own tests: every check against a fixture repo, the
+  # runner's phases, and a real `git commit` through the hooks (fake bundle).
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+
+  # The same story against a scaffolded Rails app, with the real
+  # `bundle exec rspec && rubocop && packwerk check` gate behind the hook.
+  e2e-rails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+      - run: gem install rails --no-document
+      - run: test/scaffold-app.sh "$RUNNER_TEMP/kit-e2e-app"
+      - run: KIT_E2E_APP="$RUNNER_TEMP/kit-e2e-app" node --test test/e2e-rails.test.cjs

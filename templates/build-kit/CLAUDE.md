@@ -198,7 +198,61 @@ from `slice.json`.** Don't invent anything that isn't there.
 5. Quality gate: `bundle exec rspec && bundle exec rubocop && bundle exec
    packwerk check`. While iterating, this slice's own specs only:
    `bundle exec rspec spec/slices/<context>`.
-6. If it passes: `git commit -m "feat: <Slice Name>"` and set status `Done`.
+6. If it passes: `node .build-kit/lib/check-commit-scope.cjs` (the commit
+   guard, on your uncommitted work), then `git commit -m "feat: <Slice Name>"`
+   and set status `Done`.
+
+## Commit guard
+
+When the project was installed with `--hooks`, two git hooks
+(`.githooks/pre-commit`, `.githooks/commit-msg`) run
+`.build-kit/lib/check-commit-scope.cjs` on **every slice commit** — any
+commit touching `app/slices/<context>/` or `spec/slices/<context>/`. Other
+commits pass untouched. It loads every check under `.build-kit/lib/checks/`
+and rejects the commit if one finds a problem:
+
+- **blocked-paths** — `Gemfile`, `lib/event_store.rb`, `lib/result.rb`,
+  `config/` (except `routes.rb`), `ApplicationController` and the kit's own
+  `.build-kit/` files are never touched by slice work
+- **slice-scope** — everything staged is inside `app/slices/<ctx>/`,
+  `spec/slices/<ctx>/`, `config/routes.rb`, `docs/screens/`,
+  `.build-kit/.slices/`, `.build-kit/AGENTS.local.md` or `progress.txt`
+- **one-context** — one board context per commit
+- **package-yml** — the context directory has its `package.yml`
+- **spec-present** — every `domain/<name>.rb` (except `events.rb`) has
+  `spec/slices/<ctx>/<name>_spec.rb`
+- **routes-module** — every route line added to `config/routes.rb` carries
+  `module: :<ctx>`
+- **openapi-present** — a `web/*_controller.rb` implies `web/openapi.rb`
+- **gate** — `bundle exec rspec spec/slices/<ctx>`, rubocop on the staged
+  Ruby files, `packwerk check`
+
+and, from the commit message (`feat: <Slice Name>` names the board slice, so
+the guard can open its `slice.json`):
+
+- **spec-coverage** — every `specifications[].title` appears literally as an
+  `it "…"` (or a `describe "…"` group) in this context's specs
+- **rejection-messages** — every `SPEC_ERROR` message appears verbatim in
+  the code
+- **event-types** — every event the slice produces is constructed with the
+  board's title as its `type:` string
+- **id-tags** — that constructor carries a `"<key>:#{…}"` tag per
+  `idAttribute: true` field
+- **no-pii-tags** — no `pii: true` field inside a `tags:` array
+
+**If a commit is rejected, fix the violation and commit again. Never pass
+`--no-verify`.** A rejection is the kit's rules catching a slice before it
+lands and is marked `Done` on the board — the message names the check, the
+file and what to change. Split a commit rather than widening it: a kit
+upgrade, a skill improvement or a config change is its own `chore:` commit,
+never part of `feat: <Slice Name>`.
+
+Run `node .build-kit/lib/check-commit-scope.cjs` any time to check your
+uncommitted work before committing (it checks every uncommitted change —
+staged, unstaged and untracked — and finds the slice from the one index
+entry marked `InProgress`, or from `--slice "<Slice Name>"`). To add a check,
+read `.build-kit/lib/checks/README.md` and drop in a file following its
+interface — no other wiring needed.
 
 ## The one rule `slice.json` doesn't tell you: tags come from `idAttribute: true`
 

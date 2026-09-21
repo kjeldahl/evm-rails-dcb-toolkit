@@ -58,6 +58,10 @@ def kit_fetch_overlay!
   kit_say "fetching the overlay from #{KIT_REPO}"
   Dir.mktmpdir do |tmp|
     run "git clone --depth 1 --quiet #{KIT_REPO} #{tmp}/kit", capture: true
+    # .githooks/ (the slice commit guard) is opt-in — `init --hooks` installs
+    # it and wires core.hooksPath; the CLI skips it from the plain overlay
+    # copy, and so does this.
+    FileUtils.rm_rf("#{tmp}/kit/templates/root/.githooks")
     FileUtils.cp_r("#{tmp}/kit/templates/root/.", destination_root)
   end
   kit_say "run `npx @eventmodelers/cli init --stack rails-dcb --git #{KIT_REPO}` " \

@@ -53,6 +53,8 @@ New here? Start with the guides:
 | `.build-kit/AGENTS.md` | seeded lessons, read before every slice (kit-owned, replaced on every install) |
 | `.build-kit/AGENTS.local.md` | this project's own accumulated notes — created once, never overwritten by the kit |
 | `.build-kit/lib/*.md` | the agent-loop prompts |
+| `.build-kit/lib/check-commit-scope.cjs` + `lib/checks/` | the **commit guard**: the kit's rules, enforced at commit time (see below) |
+| `.githooks/` | `pre-commit` + `commit-msg` running that guard — **only with `init --hooks`** |
 | `lib/event_store.rb`, `lib/result.rb`, `config/event_store.yml`, `lib/tasks/` | the shared plumbing every slice uses |
 | `lib/open_api.rb` + `app/controllers/openapi_controller.rb` | OpenAPI 3.1 document assembled from slice-local `web/openapi.rb` registrations, served at `GET /openapi.json` |
 | `packwerk.yml`, `package.yml`, `config/packwerk/` | packwerk slice-boundary gate (one package per slice; cross-slice constant references fail the build) |
@@ -154,6 +156,51 @@ unambiguous, and otherwise writes a **screen brief** at
 `docs/screens/EXAMPLE-wallet-balance.md`) rather than inventing a design.
 The board's screen prototypes (React/CSS) never travel in `slice.json`.
 
+## Commit guard (`--hooks`)
+
+```bash
+npx @eventmodelers/cli init --stack rails-dcb \
+  --git https://github.com/kjeldahl/evm-rails-dcb-toolkit --hooks
+```
+
+`--hooks` installs `.githooks/` and sets `git config core.hooksPath`, so
+every **slice commit** — one touching `app/slices/<ctx>/` or
+`spec/slices/<ctx>/` — is checked against the rules `.build-kit/CLAUDE.md`
+states, before it lands and gets marked `Done` on the board. Any other
+commit passes untouched. The audience is the autonomous agent, which commits
+unattended: a human can `--no-verify`, the agent is told never to.
+
+`pre-commit` runs the path-level checks (plumbing and `config/` untouched,
+strict paths, one context per commit, `package.yml` present, a spec per
+domain file, `module:` on every added route, `web/openapi.rb` for every
+controller) and a **scoped** quality gate — this context's specs, rubocop on
+the staged files, packwerk — so a commit stays well under 30 s. `commit-msg`
+then reads the slice name from `feat: <Slice Name>`, opens its `slice.json`
+and checks the slice itself: every scenario title literally in a spec,
+rejection messages verbatim, event `type:` strings and `idAttribute` tags
+in `events.rb`, no `pii` field in a tag. `node
+.build-kit/lib/check-commit-scope.cjs` runs the same checks on uncommitted
+work at any time. The full list, and how to add a check, is in
+`templates/build-kit/lib/checks/README.md`; the runner and checks are plain
+Node with no dependencies (Node is already required by the agent loop) and
+mirror the Node stack's contract so the ecosystem stays uniform.
+
+**Turning it on later.** The CLI's `init-hooks` command only knows its
+built-in stacks, and `re-init` refuses `--git` kits, so for this kit **only
+`init --hooks` installs the guard**. Re-run `init --stack rails-dcb --git
+<kit> --hooks` (safe — the overlay copy is idempotent, and `template.rb`
+never touches `.githooks/`), or by hand:
+
+```bash
+cp -R ~/.eventmodelers/git-stacks/<kit-clone>/templates/root/.githooks .
+git config core.hooksPath "$PWD/.githooks"
+```
+
+`npx @eventmodelers/cli disable-hooks` turns it off (it only unsets
+`core.hooksPath`). The CLI's success message says "commits touching
+src/slices/ are now scope-guarded" — that path is the Node stack's; here it
+is `app/slices/` and `spec/slices/`.
+
 ## Quality gate
 
 ```bash
@@ -165,6 +212,19 @@ no database at all to run the suite) — `EVENT_STORE_ADAPTER=sqlite bundle
 exec rspec` (or `=postgres`) runs the same suite against a real SQL store.
 Every board `specifications[]` scenario becomes one spec example named after
 the scenario's literal title.
+
+## Developing the kit
+
+The kit's own tests cover the commit guard: every check against a fixture
+repo, the runner's phases, and real `git commit`s through the hooks.
+
+```bash
+npm test                                   # Node ≥ 20, no dependencies
+test/scaffold-app.sh /tmp/kit-e2e-app      # needs Ruby + the rails gem …
+KIT_E2E_APP=/tmp/kit-e2e-app npm test      # … then the same story against a real app and gate
+```
+
+CI (`.github/workflows/ci.yml`) runs both.
 
 ## Provenance
 

@@ -66,7 +66,7 @@ This is the build trigger. Setting `InProgress` and building are one atomic step
 
 5. Run quality checks: `bundle exec rspec && bundle exec rubocop && bundle exec packwerk check`, then the slice's own specs only — `bundle exec rspec spec/slices/<context_snake_case>` — not the full suite twice.
 
-6. If checks pass, commit all changes with message: `feat: [Slice Name]`.
+6. If checks pass, run the commit guard on the uncommitted work (`node .build-kit/lib/check-commit-scope.cjs`), fix what it reports, then commit all changes with message: `feat: [Slice Name]`. A commit the guard's hooks reject is fixed and retried — never `--no-verify`.
 
 7. Call `/update-slice-status` to set the slice to `Done` on the board.
 
