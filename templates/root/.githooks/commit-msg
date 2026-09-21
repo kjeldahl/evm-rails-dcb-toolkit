@@ -1,0 +1,18 @@
+#!/bin/sh
+# Slice commit guard, part 2 of 2 — the slice-aware checks
+# (.build-kit/lib/checks/50-…70-*.cjs). pre-commit cannot know *which* board
+# slice is being committed, but the kit's commit convention does:
+# `feat: <Slice Name>`. This hook hands the message file to the runner, which
+# looks the slice up in .build-kit/.slices/*/index.json and checks the staged
+# code against its slice.json. A message that isn't `feat: …`, or names a
+# slice that isn't on the board, skips these checks — it never blocks.
+#
+# Same project-root resolution as pre-commit (see the comment there).
+set -e
+
+project_root=$(cd "$(dirname "$0")/.." && pwd)
+script="$project_root/.build-kit/lib/check-commit-scope.cjs"
+
+if [ -f "$script" ]; then
+  (cd "$project_root" && node "$script" --staged --message "$1")
+fi

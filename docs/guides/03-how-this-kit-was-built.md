@@ -84,7 +84,11 @@ templates/
     AGENTS.md                    #   seeded, verified learnings; grows in use
     lib/prompt.md                #   realtime-loop prompt (task queue)
     lib/backend-prompt.md        #   ralph-loop prompt (+ stack-specific tail)
+    lib/check-commit-scope.cjs   #   the commit guard's runner (Node, zero deps)
+    lib/checks/*.cjs             #   one rule per file; README.md = the contract
+    lib/util/                    #   slice lookup by title, naming, slice.json helpers
   root/                          # → project root (overlay onto `rails new`)
+    .githooks/                   #   pre-commit + commit-msg → the guard; `init --hooks` only
     INSTALL.md                   #   the manual steps the CLI can't do
     lib/event_store.rb, lib/result.rb, config/event_store.yml, ...
     lib/open_api.rb, app/controllers/openapi_controller.rb   # OpenAPI assembly
@@ -97,6 +101,22 @@ templates/
 Shared pieces (runner scripts, `connect`/`load-slice`/
 `update-slice-status`/`request-feedback`/`learn-eventmodelers-api`) come
 from the CLI at install time — never copy them into a kit; they'd go stale.
+
+## The commit guard
+
+The kit's rules in `CLAUDE.md` were prose until issue #9: nothing stopped an
+unattended agent from committing a slice that broke them and marking it
+`Done`. The guard is the Node stack's `--hooks` mechanism (the CLI copies
+`templates/root/.githooks/`, chmods `pre-commit`, sets `core.hooksPath`)
+with this kit's rules as the checks. Two things differ from the Node stack,
+both forced by the layout: the slice pattern is per *context*
+(`app/slices/<ctx>/`), so the runner exposes `ctx.contexts`; and because a
+context directory holds many board slices, `pre-commit` can't tell which
+slice is being committed — the `commit-msg` hook reads it from
+`feat: <Slice Name>` and runs the slice-aware checks (scenario coverage,
+verbatim messages, event types, tags) against that `slice.json`. Every
+check is a fixture test in `test/`, and CI scaffolds a real app to run
+`git commit` through the hooks with the real gate behind them.
 
 ## Adapting this kit
 

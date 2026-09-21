@@ -28,6 +28,15 @@ cd my_app
 npx @eventmodelers/cli init --stack rails-dcb --git https://github.com/kjeldahl/evm-rails-dcb-toolkit
 ```
 
+Add `--hooks` to install the **commit guard** as well: two git hooks that
+check every slice commit against the kit's rules (strict paths, one context
+per commit, a spec per board scenario named literally, tags from
+`idAttribute`, no pii in tags, the scoped quality gate) before it lands.
+It's the last line before an unattended agent marks a bad slice `Done`; the
+agent is told to fix a rejection, never to bypass it. Details in the kit
+README's "Commit guard" section. Only `init --hooks` installs it for a
+`--git` kit; re-run the same `init` line with `--hooks` to add it later.
+
 The installer prompts for your credentials, writes
 `.eventmodelers/config.json` (gitignored), copies this kit's overlay
 (`templates/root/` → project root, `templates/build-kit/` → `.build-kit/`,
@@ -105,6 +114,11 @@ matching `/build-*` skill.
   is only in `progress.txt` (`Slice auto-blocked`). A `Blocked` slice with
   no question on it is that case: read `progress.txt`, fix the cause, set
   it `Planned` again.
+- With `--hooks`, a slice the guard rejected never reaches `Done`: the
+  agent's `progress.txt` shows the rejection and the fix. A `feat:` commit
+  that keeps failing the guard is a slice worth reading on the board — the
+  checks name the rule (a scenario title with no spec, a rejection message
+  reworded, a missing tag).
 - Screens the agent judged non-trivial arrive as **screen briefs** under
   `docs/screens/` instead of invented UI — that's by design; build the view
   from the brief, or simplify the screen on the board.

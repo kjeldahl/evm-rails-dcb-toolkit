@@ -1,0 +1,12 @@
+{
+  "name": "evm-rails-dcb-toolkit",
+  "private": true,
+  "description": "Eventmodelers build kit: Rails 8 + dcb_event_store. This package.json only runs the kit's own tests (the commit guard); the CLI installs templates/, nothing here.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.cjs\""
+  }
+}

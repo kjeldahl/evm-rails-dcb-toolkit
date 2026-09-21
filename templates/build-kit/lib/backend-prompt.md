@@ -34,7 +34,7 @@ You work within **exactly ONE context at a time** — the one named in `.build-k
 12. If the slice has `screens` and the screen isn't a plain render/form of the slice's own data, write the **screen brief** at `docs/screens/<slice>.md` using the template in `.build-kit/CLAUDE.md`. It is version controlled.
 13. Quality gate: `bundle exec rspec && bundle exec rubocop && bundle exec packwerk check`. While iterating, `bundle exec rspec spec/slices/<context_snake_case>` is enough; run the full gate once before committing.
 14. Even if the slice is fully implemented, verify every `specifications[]` entry has a spec named after its literal title.
-15. If checks pass, commit ALL changes with message: `feat: [Slice Name]` and merge back to main as FF merge (update first).
+15. If checks pass, run the commit guard on your uncommitted work — `node .build-kit/lib/check-commit-scope.cjs` — and fix anything it reports. Then commit ALL changes with message: `feat: [Slice Name]` and merge back to main as FF merge (update first). If the commit is rejected by the guard's git hooks, **fix the violation and commit again — never `--no-verify`**.
 16. Update the PRD to set `status: Done` for the completed story in index.json **and** update the slice status on the eventmodelers board using the `update-slice-status` skill (or MCP if available).
 17. Append your progress to `progress.txt` after each step in the iteration.
 18. Append your new learnings to `.build-kit/AGENTS.local.md` in a compressed form, reusable for future iterations. Only add learnings if they are not already there. (Never to `.build-kit/AGENTS.md` — the kit owns that file and overwrites it on every install, which would erase them.)
@@ -196,6 +196,16 @@ commit red. A new context directory needs its `package.yml` (copy
 `app/slices/wallet/package.yml`), and every web-facing slice registers its
 endpoints in `web/openapi.rb` — see `.build-kit/CLAUDE.md`'s "JSON API and
 OpenAPI" section.
+
+**The commit guard is the last line before a bad slice lands.** With
+`--hooks` installed, every `feat: <Slice Name>` commit is checked against the
+rules in `.build-kit/CLAUDE.md` ("Commit guard"): strict paths, one context,
+`package.yml`, a spec per domain file, `module:` on routes, `web/openapi.rb`,
+the scoped gate, and — from the commit message — every board scenario named
+literally in a spec, rejection messages verbatim, event types and
+`idAttribute` tags in `events.rb`, no pii in tags. Run
+`node .build-kit/lib/check-commit-scope.cjs` before committing; a rejected
+commit is fixed, never bypassed.
 
 **Write the pure command/projection spec first** — arrange with the
 context's own `Events` constructors, act, assert on `Result`/folded state.

@@ -1,0 +1,25 @@
+#!/bin/sh
+# Slice commit guard, part 1 of 2 — the path-level checks
+# (.build-kit/lib/checks/00-…45-*.cjs) plus the scoped quality gate (90-*).
+# Installed by `npx @eventmodelers/cli init --stack rails-dcb --git <kit>
+# --hooks`, which copies this directory and runs
+# `git config core.hooksPath <abs>/.githooks` — so the hook is versioned and
+# shared by every clone instead of living only in .git/hooks/.
+#
+# The slice-aware checks (spec coverage, event types, tags) need the commit
+# message to know which slice is being committed; they run from commit-msg.
+set -e
+
+# Deliberately NOT `git rev-parse --show-toplevel` — when this project is a
+# subdirectory of a larger repo (a monorepo with `.githooks` installed inside
+# e.g. `backend/`), show-toplevel returns the outer repo's root, `.build-kit`
+# doesn't exist there, and the hook would silently no-op on every commit.
+# This script's own location is always `<project_root>/.githooks/pre-commit`,
+# so use that instead — and cd into it so check-commit-scope.cjs's own
+# process.cwd()/--relative git-diff logic sees the right root too.
+project_root=$(cd "$(dirname "$0")/.." && pwd)
+script="$project_root/.build-kit/lib/check-commit-scope.cjs"
+
+if [ -f "$script" ]; then
+  (cd "$project_root" && node "$script" --staged)
+fi
